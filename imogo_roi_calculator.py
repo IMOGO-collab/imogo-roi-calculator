@@ -30,45 +30,50 @@ with st.sidebar:
 # ====================== SHARED PARAMETERS ======================
 st.subheader("📦 Shared Parameters")
 col_shared1, col_shared2 = st.columns(2)
+
 with col_shared1:
-    roll_size = st.number_input("Average roll size (kg)", value=500.0, step=1.0)
-    rolls_per_shift = st.number_input("Rolls per shift", value=4.0, step=0.1)
-    shifts_day = st.number_input("Shifts per day", value=3, step=1)
-    days_year = st.number_input("Working days per year", value=330, step=1)
+    fabric_width = st.number_input("Fabric width (m)", value=1.8, step=0.1, key="fabric_width")
+    fabric_gsm = st.number_input("Fabric GSM (kg/m²)", value=0.18, step=0.01, key="fabric_gsm")
+    working_hours_per_shift = st.number_input("Working hours per shift (h)", value=8.0, step=0.5, key="working_hours")
+    production_speed_m_min = st.number_input("Production speed (m/min)", value=15.0, step=0.1, key="prod_speed")
 
 with col_shared2:
-    changeovers_shift = st.number_input("Changeovers per shift", value=3, step=1)
-    working_hours_per_shift = st.number_input("Working hours per shift (h)", value=8.0, step=0.5)
-    fabric_width = st.number_input("Fabric width (m)", value=1.8, step=0.1)
-    fabric_gsm = st.number_input("Fabric GSM (kg/m²)", value=0.18, step=0.01)
+    rolls_per_shift = st.number_input("Rolls per shift", value=4.0, step=0.1, key="rolls_shift")
+    shifts_day = st.number_input("Shifts per day", value=3, step=1, key="shifts_day")
+    days_year = st.number_input("Working days per year", value=330, step=1, key="days_year")
+    changeovers_shift = st.number_input("Changeovers per shift", value=3, step=1, key="changeovers")
 
+# ====================== CALCULATED ROLL SIZE ======================
+effective_hours_p = working_hours_per_shift - (changeovers_shift * 30 / 60.0)
+roll_length_m = (production_speed_m_min * 60 * effective_hours_p) / rolls_per_shift
+roll_size_fabric = roll_length_m * fabric_width * fabric_gsm   # kg fabric per roll
+
+st.info(f"**Fabric Roll Size:** {roll_size_fabric:,.1f} kg | **{roll_length_m:,.0f} m** per roll")
+
+# ====================== ANNUAL / DAILY PRODUCTION ======================
 annual_changeovers = shifts_day * changeovers_shift * days_year
-base_annual_kg = roll_size * rolls_per_shift * shifts_day * days_year
+base_annual_kg = roll_size_fabric * rolls_per_shift * shifts_day * days_year
 base_daily_kg = base_annual_kg / days_year if days_year > 0 else 0
 
-# ====================== PRODUCTION SUMMARY ======================
-effective_hours_p = working_hours_per_shift - (changeovers_shift * 30 / 60.0)
-running_speed_kg_h_p = (roll_size * rolls_per_shift) / effective_hours_p if effective_hours_p > 0 else 0
-running_speed_m_min_p = running_speed_kg_h_p / (60 * fabric_width * fabric_gsm) if fabric_width * fabric_gsm > 0 else 0
-
-effective_hours_i = working_hours_per_shift - (changeovers_shift * 15 / 60.0)
-running_speed_kg_h_i = (roll_size * rolls_per_shift) / effective_hours_i if effective_hours_i > 0 else 0
-running_speed_m_min_i = running_speed_kg_h_i / (60 * fabric_width * fabric_gsm) if fabric_width * fabric_gsm > 0 else 0
-
+# ====================== PRODUCTION VOLUME SUMMARY ======================
 st.subheader("📊 Production Volume Summary")
 col_sum1, col_sum2 = st.columns(2)
+
 with col_sum1:
     st.metric("**Traditional Padder**", f"{base_annual_kg:,.0f} kg/year")
-    st.caption(f"**{base_daily_kg:,.0f} kg/day** | **{running_speed_m_min_p:,.1f} m/min**")
+    st.caption(f"**{base_daily_kg:,.0f} kg/day** | **{production_speed_m_min:,.1f} m/min**")
+
 with col_sum2:
     time_saved_per_shift_h = changeovers_shift * (30 - 15) / 60.0
-    extra_kg_per_day = time_saved_per_shift_h * running_speed_kg_h_i
+    extra_kg_per_day = time_saved_per_shift_h * (production_speed_m_min * 60 * fabric_width * fabric_gsm)
     extra_kg_per_year = extra_kg_per_day * days_year
+    
     st.metric("**Imogo Dye-Max**", f"{base_annual_kg:,.0f} kg/year", f"↑ {extra_kg_per_year:,.0f} kg/year extra")
-    st.caption(f"**{base_daily_kg:,.0f} kg/day** | **{running_speed_m_min_i:,.1f} m/min**")
+    st.caption(f"**{base_daily_kg:,.0f} kg/day** | **{production_speed_m_min:,.1f} m/min**")
 
 # ====================== MACHINE SPECIFIC ======================
 col_p, col_i = st.columns(2)
+
 with col_p:
     st.subheader("🟠 Traditional Padder")
     p_changeover_min = st.number_input("Changeover time (min)", value=30, step=1, key="p_ch")
@@ -80,8 +85,8 @@ with col_p:
     p_waste_changeover = st.number_input("Waste water/changeover (L)", value=70, step=1, key="p_w")
     p_startup_waste_m = st.number_input("Startup waste fabric (m)", value=50.0, step=1.0, key="p_startup")
     p_energy_kwh_per_kg = st.number_input("Energy (kWh/kg)", value=0.05, step=0.001, format="%.4f", key="p_en")
-    p_b_quality_pct = st.number_input("B-quality fabric (%)", value=4.0, step=0.1, key="p_bq")
-    p_waste_fabric_pct = st.number_input("Waste fabric (%)", value=2.0, step=0.1, key="p_wf")
+    p_b_quality_pct = st.number_input("B-quality fabric (%)", value=3.0, step=0.1, key="p_bq")
+    p_waste_fabric_pct = st.number_input("Waste fabric (%)", value=1.0, step=0.1, key="p_wf")
 
 with col_i:
     st.subheader("🔵 Imogo Dye-Max")
@@ -94,8 +99,24 @@ with col_i:
     i_waste_changeover = st.number_input("Waste water/changeover (L)", value=15, step=1, key="i_w")
     i_startup_waste_m = st.number_input("Startup waste fabric (m)", value=7.0, step=1.0, key="i_startup")
     i_energy_kwh_per_kg = st.number_input("Energy (kWh/kg)", value=0.035, step=0.001, format="%.4f", key="i_en")
-    i_b_quality_pct = st.number_input("B-quality fabric (%)", value=2.0, step=0.1, key="i_bq")
+    i_b_quality_pct = st.number_input("B-quality fabric (%)", value=3.0, step=0.1, key="i_bq")
     i_waste_fabric_pct = st.number_input("Waste fabric (%)", value=1.0, step=0.1, key="i_wf")
+
+# ====================== TOTAL ROLL WEIGHT INCL. LIQUID ======================
+p_total_roll_kg = roll_size_fabric + (roll_size_fabric * p_disp_l_per_kg) if 'p_disp_l_per_kg' in locals() else roll_size_fabric
+i_total_roll_kg = roll_size_fabric + (roll_size_fabric * i_disp_l_per_kg) if 'i_disp_l_per_kg' in locals() else roll_size_fabric
+
+total_roll_weight_text = f"**Total Roll Weight incl. Liquid:** {p_total_roll_kg:,.1f} kg | {i_total_roll_kg:,.1f} kg"
+
+if max(p_total_roll_kg, i_total_roll_kg) > 1500:
+    st.error(total_roll_weight_text)
+    st.caption("⚠️ Varning: En eller flera rullar överstiger 1500 kg!")
+else:
+    st.success(total_roll_weight_text)
+
+# ====================== EFFECTIVE HOURS ======================
+effective_hours_p = working_hours_per_shift - (changeovers_shift * p_changeover_min / 60.0)
+effective_hours_i = working_hours_per_shift - (changeovers_shift * i_changeover_min / 60.0)
 
 # ====================== CALCULATIONS ======================
 p_disp_L = base_annual_kg * p_disp_l_per_kg
