@@ -80,6 +80,8 @@ with col_p:
     p_waste_changeover = st.number_input("Waste water/changeover (L)", value=70, step=1, key="p_w")
     p_startup_waste_m = st.number_input("Startup waste fabric (m)", value=50.0, step=1.0, key="p_startup")
     p_energy_kwh_per_kg = st.number_input("Energy (kWh/kg)", value=0.05, step=0.001, format="%.4f", key="p_en")
+    p_b_quality_pct = st.number_input("B-quality fabric (%)", value=4.0, step=0.1, key="p_bq")
+    p_waste_fabric_pct = st.number_input("Waste fabric (%)", value=2.0, step=0.1, key="p_wf")
 
 with col_i:
     st.subheader("🔵 Imogo Dye-Max")
@@ -92,6 +94,8 @@ with col_i:
     i_waste_changeover = st.number_input("Waste water/changeover (L)", value=15, step=1, key="i_w")
     i_startup_waste_m = st.number_input("Startup waste fabric (m)", value=7.0, step=1.0, key="i_startup")
     i_energy_kwh_per_kg = st.number_input("Energy (kWh/kg)", value=0.035, step=0.001, format="%.4f", key="i_en")
+    i_b_quality_pct = st.number_input("B-quality fabric (%)", value=2.0, step=0.1, key="i_bq")
+    i_waste_fabric_pct = st.number_input("Waste fabric (%)", value=1.0, step=0.1, key="i_wf")
 
 # ====================== CALCULATIONS ======================
 p_disp_L = base_annual_kg * p_disp_l_per_kg
@@ -168,15 +172,37 @@ i_total_energy_kwh = (base_annual_kg + i_startup_waste_kg) * i_energy_kwh_per_kg
 energy_savings_kwh = p_total_energy_kwh - i_total_energy_kwh
 energy_savings = energy_savings_kwh * elec_price
 
+# ====================== FABRIC QUALITY & WASTE ======================
+# B-quality and Waste fabric
+p_b_quality_kg = base_annual_kg * (p_b_quality_pct / 100)
+i_b_quality_kg = base_annual_kg * (i_b_quality_pct / 100)
+
+p_waste_fabric_kg = base_annual_kg * (p_waste_fabric_pct / 100)
+i_waste_fabric_kg = base_annual_kg * (i_waste_fabric_pct / 100)
+
+# Savings from B-quality (difference between A and B price)
+b_quality_savings = (p_b_quality_kg - i_b_quality_kg) * (price_a_fabric - price_b_fabric)
+
+# Savings from Waste fabric (avoided loss)
+waste_fabric_savings = (p_waste_fabric_kg - i_waste_fabric_kg) * (price_a_fabric - price_waste_fabric)
+
 # Other savings
 waste_savings = (p_waste_L - i_waste_L) * waste_handling_price
 labor_savings = (annual_changeovers * p_changeover_min / 60 - annual_changeovers * i_changeover_min / 60) * labor_price
 
-annual_savings = (total_dye_savings_kg * dye_stuff_price + 
-                  total_chem_a_savings * chem_a_price +
-                  total_chem_b_savings * chem_b_price +
-                  total_chem_c_savings * chem_c_price +
-                  water_savings + energy_savings + waste_savings + labor_savings)
+# ====================== TOTAL ANNUAL SAVINGS ======================
+annual_savings = (
+    total_dye_savings_kg * dye_stuff_price +
+    total_chem_a_savings * chem_a_price +
+    total_chem_b_savings * chem_b_price +
+    total_chem_c_savings * chem_c_price +
+    water_savings +
+    waste_savings +
+    energy_savings +
+    labor_savings +
+    b_quality_savings +           # <-- Ny
+    waste_fabric_savings          # <-- Ny
+)
 
 payback_months = (investment_cost / annual_savings * 12) if annual_savings > 0 else 0
 
@@ -196,10 +222,22 @@ e1.metric("**Water Savings**", f"{water_savings_m3:,.0f} m³/year")
 e2.metric("**CO₂ Savings**", f"{(energy_savings_kwh * co2_per_kwh / 1000):,.1f} tonnes/year")
 e3.metric("**Energy Savings**", f"{energy_savings_kwh:,.0f} kWh/year")
 
-# ====================== BREAKDOWN ======================
+# ====================== MONETARY SAVINGS BREAKDOWN ======================
 st.subheader("💰 Monetary Savings Breakdown (€/year)")
+
 breakdown = pd.DataFrame({
-    "Category": ["Dye Stuff", "Chem A", "Chem B", "Chem C", "Process Water", "Waste Handling", "Energy", "Labor"],
+    "Category": [
+        "Dye Stuff", 
+        "Chem A", 
+        "Chem B", 
+        "Chem C", 
+        "Process Water", 
+        "Waste Handling", 
+        "Energy", 
+        "Labor",
+        "B-Quality Fabric",
+        "Waste Fabric"
+    ],
     "Savings (€/year)": [
         total_dye_savings_kg * dye_stuff_price,
         total_chem_a_savings * chem_a_price,
@@ -208,10 +246,18 @@ breakdown = pd.DataFrame({
         water_savings,
         waste_savings,
         energy_savings,
-        labor_savings
+        labor_savings,
+        b_quality_savings,
+        waste_fabric_savings
     ]
 })
-st.dataframe(breakdown.style.format("€{:,.0f}", subset=["Savings (€/year)"]), use_container_width=True, hide_index=True)
+
+st.dataframe(
+    breakdown.style.format("€{:,.0f}", subset=["Savings (€/year)"]),
+    use_container_width=True, 
+    hide_index=True
+)
+
 
 # ====================== GRAPHS ======================
 st.markdown("### 📊 Savings Breakdown")
