@@ -90,7 +90,7 @@ with col_p:
 
 with col_i:
     st.subheader("🔵 Imogo Dye-Max")
-    i_changeover_min = st.number_input("Changeover time (min)", value=15, step=1, key="i_ch")
+    i_changeover_min = st.number_input("Changeover time (min)", value=20, step=1, key="i_ch")
     i_disp_l_per_kg = st.number_input("Dye dispersion (L/kg)", value=0.8, step=0.1, key="i_disp")
     i_dye_conc = st.number_input("Dye concentration (%) OWF", value=4.0, step=0.1, key="i_dye")
     i_chem_a_gl = st.number_input("Chem A (g/L)", value=3.0, step=1.0, key="i_a")
@@ -279,46 +279,74 @@ st.dataframe(
     hide_index=True
 )
 
+# ====================== TOTAL COST PER KG ======================
+st.subheader("💰 Total Cost per kg Fabric")
+
+annual_kg = base_annual_kg
+
+# Definiera alla kostnader för Padder
+dye_cost_p = p_dye_kg * dye_stuff_price
+chem_cost_p = p_chem_a_kg + p_chem_b_kg + p_chem_c_kg
+water_cost_p = p_total_water * water_price if 'p_total_water' in locals() else 0
+waste_cost_p = p_waste_L * waste_handling_price if 'p_waste_L' in locals() else 0
+energy_cost_p = p_total_energy_kwh * elec_price if 'p_total_energy_kwh' in locals() else 0
+labor_cost_p = annual_changeovers * p_changeover_min / 60 * labor_price
+
+total_cost_p = dye_cost_p + chem_cost_p + water_cost_p + waste_cost_p + energy_cost_p + labor_cost_p
+
+# Total kostnad för Imogo (använder besparing)
+total_cost_i = total_cost_p - annual_savings
+
+cost_per_kg_p = total_cost_p / annual_kg if annual_kg > 0 else 0
+cost_per_kg_i = total_cost_i / annual_kg if annual_kg > 0 else 0
+
+savings_per_kg = cost_per_kg_p - cost_per_kg_i
+percentage_savings = (savings_per_kg / cost_per_kg_p * 100) if cost_per_kg_p > 0 else 0
+
+col_c1, col_c2 = st.columns(2)
+with col_c1:
+    st.metric("**Traditional Padder**", f"€{cost_per_kg_p:.3f} / kg")
+
+with col_c2:
+    st.metric(
+        label="**Imogo Dye-Max**", 
+        value=f"€{cost_per_kg_i:.3f} / kg",
+        delta=f"↓ €{savings_per_kg:.3f} / kg ({percentage_savings:.1f}%)"
+    )
+
+st.caption("Total cost per kg includes Dye, Chemistry, Water, Waste, Energy, Labor, B-quality & Waste fabric")
 
 # ====================== GRAPHS ======================
-st.markdown("### 📊 Savings Breakdown")
-fig_savings = go.Figure(go.Bar(
+st.markdown("### 📊 Visual Savings Overview")
+
+# Savings per category
+fig1 = go.Figure(go.Bar(
     x=breakdown["Savings (€/year)"],
     y=breakdown["Category"],
     orientation='h',
-    marker_color=['#FF9800', '#FF5722', '#00B0FF', '#9C27B0', '#00C853', '#1E88E5', '#FF5252', '#1E88E5']
+    marker_color=['#FF9800', '#FF5722', '#00B0FF', '#9C27B0', '#00C853', '#1E88E5', '#FF5252', '#1E88E5', '#10B981', '#F59E0B']
 ))
-fig_savings.update_layout(height=400, xaxis_title="€ Savings per year", title="Årliga besparingar per kategori")
-st.plotly_chart(fig_savings, use_container_width=True)
+fig1.update_layout(title="Årliga besparingar per kategori (€/year)", height=500, xaxis_title="€ Savings")
+st.plotly_chart(fig1, use_container_width=True)
 
-st.markdown("### 📈 Kostnadsjämförelse Padder vs Imogo")
-cost_fig = go.Figure()
-cost_fig.add_trace(go.Bar(
+# Total cost per kg comparison
+fig2 = go.Figure()
+fig2.add_trace(go.Bar(
     name="Traditional Padder",
-    x=["Dye", "Chemistry", "Water", "Waste", "Energy", "Labor"],
-    y=[p_dye_kg*dye_stuff_price, 
-       (p_chem_a_kg + p_chem_b_kg + p_chem_c_kg) * ((chem_a_price+chem_b_price+chem_c_price)/3),
-       p_total_water * water_price,
-       p_waste_L * waste_handling_price,
-       p_total_energy_kwh * elec_price,
-       (annual_changeovers * p_changeover_min / 60) * labor_price],
-    marker_color="#FF5252"
+    x=["Total Cost / kg"],
+    y=[cost_per_kg_p],
+    marker_color="#EF4444"
 ))
-cost_fig.add_trace(go.Bar(
+fig2.add_trace(go.Bar(
     name="Imogo Dye-Max",
-    x=["Dye", "Chemistry", "Water", "Waste", "Energy", "Labor"],
-    y=[i_dye_kg*dye_stuff_price, 
-       (i_chem_a_kg + i_chem_b_kg + i_chem_c_kg) * ((chem_a_price+chem_b_price+chem_c_price)/3),
-       i_total_water * water_price,
-       i_waste_L * waste_handling_price,
-       i_total_energy_kwh * elec_price,
-       (annual_changeovers * i_changeover_min / 60) * labor_price],
-    marker_color="#1E88E5"
+    x=["Total Cost / kg"],
+    y=[cost_per_kg_i],
+    marker_color="#10B981"
 ))
-cost_fig.update_layout(barmode='group', height=420, title="Årliga kostnader per kategori")
-st.plotly_chart(cost_fig, use_container_width=True)
+fig2.update_layout(title="Total Cost per kg Fabric", height=400, barmode='group', yaxis_title="€ / kg")
+st.plotly_chart(fig2, use_container_width=True)
 
-# ====================== PDF REPORT EXPORT ======================
+# ====================== PDF REPORT ======================
 st.markdown("---")
 st.subheader("📄 Export Full Report")
 
@@ -327,25 +355,32 @@ html_report = f"""
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Imogo Dye-Max ROI Report</title>
+    <title>Imogo Dye-max ROI Report</title>
     <style>
-        body {{ font-family: Arial, sans-serif; margin: 40px; }}
-        h1 {{ text-align: center; color: #1E88E5; }}
-        .metric {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0; }}
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; line-height: 1.6; color: #1f2937; }}
+        h1 {{ text-align: center; color: #1E40AF; font-size: 28px; }}
+        h2 {{ color: #1E40AF; border-bottom: 3px solid #93C5FD; padding-bottom: 8px; }}
+        .metric {{ background: linear-gradient(135deg, #f0f9ff, #e0f2fe); padding: 20px; border-radius: 12px; margin: 15px 0; text-align: center; }}
         table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: right; }}
-        th {{ background: #1E88E5; color: white; }}
+        th, td {{ border: 1px solid #cbd5e1; padding: 12px; text-align: right; }}
+        th {{ background-color: #1E40AF; color: white; }}
+        .footer {{ text-align: center; margin-top: 60px; color: #64748b; }}
     </style>
 </head>
 <body>
-    <h1>Imogo Dye-Max ROI Report</h1>
-    <p style="text-align:center;"><strong>Generated:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
+    <h1>Imogo Dye-max ROI Report</h1>
+    <p style="text-align:center; color:#64748b;"><strong>Generated:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
     
     <div class="metric">
         <h2>Key Results</h2>
-        <p><strong>Annual Savings:</strong> €{annual_savings:,.0f}</p>
-        <p><strong>Payback Time:</strong> {payback_months:.1f} months</p>
+        <p style="font-size:1.5em;"><strong>Annual Savings: €{annual_savings:,.0f}</strong></p>
+        <p><strong>Payback Period: {payback_months:.1f} months</strong></p>
+        <p><strong>Investment Cost: €{investment_cost:,.0f}</strong></p>
     </div>
+
+    <h2>Production Summary</h2>
+    <p><strong>Traditional Padder:</strong> {base_annual_kg:,.0f} kg/year</p>
+    <p><strong>Imogo Dye-Max:</strong> {base_annual_kg:,.0f} kg/year (+ {extra_kg_per_year:,.0f} kg potential)</p>
 
     <h2>Physical Savings</h2>
     <p>Dye Stuff: <strong>{total_dye_savings_kg:,.0f} kg/year</strong></p>
@@ -355,14 +390,11 @@ html_report = f"""
     <p>CO₂: <strong>{(energy_savings_kwh * co2_per_kwh / 1000):,.1f} tonnes/year</strong></p>
 
     <h2>Monetary Savings Breakdown</h2>
-    {breakdown.to_html(index=False, classes='table', 
-                       formatters={
-                           "Savings (€/year)": lambda x: f"€{x:,.0f}"
-                       })}
-    
-    <p style="text-align:center; margin-top:50px; color:#666;">
-        Imogo Dye-Max ROI Calculator • Confidential
-    </p>
+    {breakdown.to_html(index=False, classes='table')}
+
+    <div class="footer">
+        Imogo Dye-max ROI Calculator • Confidential
+    </div>
 </body>
 </html>
 """
@@ -370,7 +402,7 @@ html_report = f"""
 if st.download_button(
     label="📥 Download Professional Report as HTML (Print → Save as PDF)",
     data=html_report,
-    file_name="Imogo_Dye-Max_ROI_Report.html",
+    file_name="Imogo_Dye-max_ROI_Report.html",
     mime="text/html"
 ):
-    st.success("✅ Report downloaded! Open → Ctrl+P → Save as PDF")
+    st.success("✅ Report downloaded! Open the file → Ctrl+P → Save as PDF")
