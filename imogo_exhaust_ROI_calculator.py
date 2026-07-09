@@ -6,30 +6,60 @@ from datetime import datetime
 st.set_page_config(page_title="Imogo Dye-max vs Exhaust ROI", layout="wide", page_icon="💰")
 st.title("💰 Imogo Dye-Max vs Traditional Exhaust – ROI Calculator")
 
+# ====================== INITIALISERA VALUTA-STATE ======================
+# Vi sätter upp standardvärden i Euro som bas. Dessa anpassas dynamiskt om växelkursen ändras.
+if 'prev_conv' not in st.session_state:
+    st.session_state.prev_conv = 1.0
+
+defaults = {
+    "elec": 0.10, "water": 0.0001, "dye_p": 5.0,
+    "wet_p": 0.8, "soda_p": 0.35, "cau_p": 0.25, "seq_p": 1.2,
+    "lev_p": 1.0, "lub_p": 1.0, "anti_p": 1.2, "salt_p": 0.1,
+    "fiber_p": 2.0, "labor": 1.0, "waste_p": 0.002, "inv": 635000.0
+}
+
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = float(v)
+
 # ====================== SIDEBAR ======================
 with st.sidebar:
-    st.header("💲 Cost Prices")
-    elec_price = st.number_input("Electricity (€/kWh)", value=0.10, step=0.01, key="elec")
-    water_price = st.number_input("Water (€/L)", value=0.0001, step=0.0001, format="%.4f", key="water")
-    dye_price = st.number_input("Dye stuff (€/kg)", value=5.0, step=0.5, key="dye_p")
+    st.header("🌍 Valuta & Växelkurs")
+    curr = st.text_input("Visningsvaluta (t.ex. EUR, SEK, USD)", value="EUR", max_chars=5)
+    conv = st.number_input(f"Växelkurs (1 EUR = ? {curr})", value=1.0, step=0.1, format="%.2f")
+
+    # OM användaren ändrar växelkursen, räkna om alla värden i session_state
+    if conv != st.session_state.prev_conv:
+        factor = conv / st.session_state.prev_conv
+        for k in defaults.keys():
+            st.session_state[k] = float(st.session_state[k] * factor)
+        st.session_state.prev_conv = conv
+
+    st.markdown("---")
+    st.header(f"💲 Priser & Kostnader ({curr})")
     
-    st.subheader("Chemistry Prices (€/kg)")
-    wetting_price = st.number_input("Wetting agent", value=0.8, key="wet_p")
-    soda_price = st.number_input("Soda ash", value=0.35, key="soda_p")
-    caustic_price = st.number_input("NAOH 50%", value=0.25, key="cau_p")
-    seq_price = st.number_input("Sequestering", value=1.2, key="seq_p")
-    lev_price = st.number_input("Levelling", value=1.0, key="lev_p")
-    lub_price = st.number_input("Lubrication", value=1.0, key="lub_p")
-    anti_price = st.number_input("Anti foaming", value=1.2, key="anti_p")
-    salt_price = st.number_input("Salt", value=0.1, key="salt_p")
+    # Inmatningsfälten är kopplade till session_state via 'key'. Ingen 'value' behövs då Streamlit hämtar från key automatiskt.
+    elec_price = st.number_input(f"Electricity ({curr}/kWh)", step=0.01, format="%.2f", key="elec")
+    water_price = st.number_input(f"Water ({curr}/L)", step=0.0001, format="%.5f", key="water")
+    dye_price = st.number_input(f"Dye stuff ({curr}/kg)", step=0.5, format="%.2f", key="dye_p")
+    
+    st.subheader(f"Chemistry Prices ({curr}/kg)")
+    wetting_price = st.number_input("Wetting agent", step=0.1, format="%.2f", key="wet_p")
+    soda_price = st.number_input("Soda ash", step=0.05, format="%.2f", key="soda_p")
+    caustic_price = st.number_input("NAOH 50%", step=0.05, format="%.2f", key="cau_p")
+    seq_price = st.number_input("Sequestering", step=0.1, format="%.2f", key="seq_p")
+    lev_price = st.number_input("Levelling", step=0.1, format="%.2f", key="lev_p")
+    lub_price = st.number_input("Lubrication", step=0.1, format="%.2f", key="lub_p")
+    anti_price = st.number_input("Anti foaming", step=0.1, format="%.2f", key="anti_p")
+    salt_price = st.number_input("Salt", step=0.05, format="%.2f", key="salt_p")
     
     st.subheader("Fabric")
-    fiber_price = st.number_input("Fiber / Fabric cost (€/kg)", value=2.0, step=0.1, key="fiber_p")
+    fiber_price = st.number_input(f"Fiber / Fabric cost ({curr}/kg)", step=0.1, format="%.2f", key="fiber_p")
     
-    labor_price = st.number_input("Labor (€/man-hour)", value=1.0, key="labor")
-    waste_price = st.number_input("Waste handling (€/L)", value=0.002, format="%.4f", key="waste_p")
+    labor_price = st.number_input(f"Labor ({curr}/man-hour)", step=0.1, format="%.2f", key="labor")
+    waste_price = st.number_input(f"Waste handling ({curr}/L)", format="%.5f", key="waste_p")
     co2_factor = st.number_input("CO₂ kg/kWh", value=0.202, step=0.001, key="co2")
-    investment = st.number_input("Imogo Investment (€)", value=635000, step=5000, key="inv")
+    investment = st.number_input(f"Imogo Investment ({curr})", step=5000.0, format="%.0f", key="inv")
 
 # ====================== PRODUCTION PARAMETERS ======================
 st.subheader("📊 Production Parameters")
@@ -73,27 +103,42 @@ daily_meters_dm = daily_kg_dm / (fabric_width * gsm) if (fabric_width * gsm) > 0
 effective_hours_dm = 24 - (batches_per_day_dm * changeover_min_dm / 60.0)
 production_speed_dm = daily_meters_dm / (effective_hours_dm * 60) if effective_hours_dm > 0 else 0
 
-st.info(f"**Imogo Dye-Max Production speed:** **{production_speed_dm:,.1f} m/min**  "
+st.info(f"**Imogo Dye-Max Production speed:** **{production_speed_dm:,.1f} m/min** "
         f"({daily_kg_dm:,.0f} kg/day | Effective {effective_hours_dm:.1f} h/day)")
 
 # ====================== PRODUCTION VOLUME SUMMARY ======================
 st.subheader("📊 Production Volume Summary")
 p1, p2 = st.columns(2)
 with p1:
-    st.metric("**Traditional Exhaust**", f"{batch_ex * batches_per_day_ex * days_year:,.0f} kg/year")
-    st.caption(f"{batch_ex * batches_per_day_ex:,.0f} kg/day | {batches_per_day_ex * days_year:,.0f} batches/year")
+    ex_annual_text = f"{batch_ex * batches_per_day_ex * days_year:,.0f}".replace(",", " ")
+    st.metric("**Traditional Exhaust**", f"{ex_annual_text} kg/year")
+    
+    ex_daily_text = f"{batch_ex * batches_per_day_ex:,.0f}".replace(",", " ")
+    ex_batches_text = f"{batches_per_day_ex * days_year:,.0f}".replace(",", " ")
+    st.caption(f"{ex_daily_text} kg/day | {ex_batches_text} batches/year")
+    
 with p2:
     annual_dm = batch_dm * batches_per_day_dm * days_year
     extra = annual_dm - (batch_ex * batches_per_day_ex * days_year)
-    st.metric("**Imogo Dye-Max**", f"{annual_dm:,.0f} kg/year", f"↑ {extra:,.0f} kg/year extra")
-    st.caption(f"{batch_dm * batches_per_day_dm:,.0f} kg/day | {batches_per_day_dm * days_year:,.0f} batches/year")
+    
+    dm_annual_text = f"{annual_dm:,.0f}".replace(",", " ")
+    extra_text = f"↑ {extra:,.0f}".replace(",", " ")
+    st.metric("**Imogo Dye-Max**", f"{dm_annual_text} kg/year", f"{extra_text} kg/year extra")
+    
+    dm_daily_text = f"{batch_dm * batches_per_day_dm:,.0f}".replace(",", " ")
+    dm_batches_text = f"{batches_per_day_dm * days_year:,.0f}".replace(",", " ")
+    st.caption(f"{dm_daily_text} kg/day | {dm_batches_text} batches/year")
 
 # Production speed for Dye-Max
 daily_kg_dm = batch_dm * batches_per_day_dm
 daily_meters_dm = daily_kg_dm / (fabric_width * gsm) if (fabric_width * gsm) > 0 else 0
 production_speed_dm = daily_meters_dm / (24 * 60)
 
-st.info(f"**Imogo Dye-Max Production speed:** **{production_speed_dm:,.1f} m/min**  ({daily_kg_dm:,.0f} kg/day)")
+# Formatera hastigheten med svenskt decimaltecken (,) och mellanslag för tusental
+speed_text = f"{production_speed_dm:,.1f}".replace(",", " ").replace(".", ",")
+daily_kg_dm_text = f"{daily_kg_dm:,.0f}".replace(",", " ")
+
+st.info(f"**Imogo Dye-Max Production speed:** **{speed_text} m/min** ({daily_kg_dm_text} kg/day)")
 
 # ====================== ENERGY ======================
 st.subheader("⚡ Energy per kg fabric")
@@ -186,7 +231,12 @@ energy_sav_kwh = energy_total_ex - energy_total_dm
 fiber_loss_kg_ex = annual_ex * fiber_loss_ex
 fiber_loss_kg_dm = annual_dm * fiber_loss_dm
 
-# Savings
+# 1. Beräkna fysiska kilon för kemikalier (detta löser miljonfelet i kg/year)
+chem_kg_ex = sum([calc_chem(annual_ex, liq_ex, v) for v in [wetting_ex, soda_ex, caustic_ex, seq_ex, lev_ex, lub_ex, anti_ex, salt_ex]])
+chem_kg_dm = sum([calc_chem(annual_dm, liq_dm, v) for v in [wetting_dm, soda_dm, caustic_dm, seq_dm, lev_dm, lub_dm, anti_dm, salt_dm]])
+chem_sav_kg_total = chem_kg_ex - chem_kg_dm
+
+# 2. Beräkna ekonomiska besparingar i pengar
 dye_sav = (dye_ex - dye_dm) * dye_price
 water_sav = (water_ex - water_dm) * water_price
 chem_sav = chem_ex - chem_dm
@@ -194,6 +244,7 @@ energy_sav = energy_sav_kwh * elec_price
 fiber_sav = (fiber_loss_kg_ex - fiber_loss_kg_dm) * fiber_price
 waste_sav = (waste_ex * batches_ex - waste_dm * batches_dm) * waste_price
 
+# 3. Totala sammanställningar
 total_savings = dye_sav + water_sav + chem_sav + energy_sav + fiber_sav + waste_sav
 payback_months = (investment / total_savings * 12) if total_savings > 0 else 0
 co2_savings = energy_sav_kwh * co2_factor / 1000
@@ -215,26 +266,50 @@ with col_b2:
     st.write(f"Drying: {en_dry_dm:.3f} kWh/kg")
     st.write(f"**Sum per kg:** {en_op_dm + en_steam_dm + en_dry_dm:.3f} kWh/kg")
     st.write(f"**Total Base:** {energy_base_dm:,.0f} kWh")
+
 # ====================== SAVINGS OVERVIEW ======================
 st.subheader("📈 Savings Overview")
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("**Annual € Savings**", f"€{total_savings:,.0f}")
-c2.metric("**Payback Period**", f"{payback_months:.1f} months")
-c3.metric("**Dye Stuff Savings**", f"{dye_ex - dye_dm:,.0f} kg/year")
-c4.metric("**Chemistry Savings**", f"{chem_ex - chem_dm:,.0f} kg/year")
+
+# 1. Årliga besparingar (dynamisk valuta + mellanslag istället för komma)
+annual_savings_text = f"{curr} {total_savings:,.0f}".replace(",", " ")
+c1.metric(f"**Annual {curr} Savings**", annual_savings_text)
+
+# 2. Payback period (Gör om amerikansk punkt till svenskt kommatecken för decimalen)
+payback_text = f"{payback_months:.1f}".replace(".", ",")
+c2.metric("**Payback Period**", f"{payback_text} months")
+
+# 3. Dye Stuff (Mellanslag istället för komma för tusental)
+dye_savings_text = f"{dye_ex - dye_dm:,.0f}".replace(",", " ")
+c3.metric("**Dye Stuff Savings**", f"{dye_savings_text} kg/year")
+
+# 4. Chemistry (Mellanslag istället för komma för tusental)
+chem_savings_text = f"{chem_sav_kg_total:,.0f}".replace(",", " ")
+c4.metric("**Chemistry Savings**", f"{chem_savings_text} kg/year")
+
 
 st.subheader("🌍 Environmental Savings")
 e1, e2, e3 = st.columns(3)
-e1.metric("**Water Savings**", f"{(water_ex - water_dm)/1000:,.0f} m³/year")
-e2.metric("**CO₂ Savings**", f"{co2_savings:,.1f} tonnes/year")
-e3.metric("**Energy Savings**", f"{energy_sav_kwh:,.0f} kWh/year")
+
+# Water (Mellanslag istället för komma för tusental)
+water_text = f"{(water_ex - water_dm)/1000:,.0f}".replace(",", " ")
+e1.metric("**Water Savings**", f"{water_text} m³/year")
+
+# CO₂ (Ändrar punkt till svenskt kommatecken för decimalen)
+co2_text = f"{co2_savings:.1f}".replace(".", ",")
+e2.metric("**CO₂ Savings**", f"{co2_text} tonnes/year")
+
+# Energy (Mellanslag istället för komma för tusental)
+energy_text = f"{energy_sav_kwh:,.0f}".replace(",", " ")
+e3.metric("**Energy Savings**", f"{energy_text} kWh/year")
 
 # ====================== BREAKDOWN ======================
-st.subheader("💰 Monetary Savings Breakdown (€/year)")
+st.subheader(f"💰 Monetary Savings Breakdown ({curr}/year)")
+
 breakdown = pd.DataFrame({
     "Category": ["Dye Stuff", "Wetting Agent", "Soda Ash", "NAOH 50%", "Sequestering", "Levelling", 
                  "Lubrication", "Anti Foaming", "Salt", "Process Water", "Waste Water Handling", "Energy", "Fiber Loss"],
-    "Savings (€/year)": [
+    f"Savings ({curr}/year)": [
         dye_sav,
         calc_chem(annual_ex, liq_ex, wetting_ex)*wetting_price - calc_chem(annual_dm, liq_dm, wetting_dm)*wetting_price,
         calc_chem(annual_ex, liq_ex, soda_ex)*soda_price - calc_chem(annual_dm, liq_dm, soda_dm)*soda_price,
@@ -251,13 +326,15 @@ breakdown = pd.DataFrame({
     ]
 })
 
-df = pd.DataFrame(breakdown)
-df = df.round(0)
-df["Savings (€/year)"] = df["Savings (€/year)"].map("€{:,.0f}".format)
+# Skapa en ren kopia för visning och PDF-rapporten
+df = breakdown.copy()
 
-st.table(
-    breakdown.style.format("€{:,.0f}", subset=["Savings (€/year)"])
-)
+# Denna rad tvingar fram vald valuta, lägger till tusentalsavgränsare (komma) och rensar bort ALLA decimaler (.0f)
+df[f"Savings ({curr}/year)"] = df[f"Savings ({curr}/year)"].map(lambda x: f"{curr} {x:,.0f}".replace(",", " "))
+
+# Visa endast den färdigformaterade tabellen i Streamlit-appen
+st.table(df)
+
 # ====================== TOTAL COST PER KG ======================
 st.subheader("💰 Total Cost per kg Fabric")
 
@@ -291,15 +368,21 @@ cost_per_kg_dm = total_cost_dm / annual_kg if annual_kg > 0 else 0
 savings_per_kg = cost_per_kg_ex - cost_per_kg_dm
 percentage_savings = (savings_per_kg / cost_per_kg_ex * 100) if cost_per_kg_ex > 0 else 0
 
+# HÄR SÄTTER VI 2 DECIMALER (.2f) OCH SVENSKT DECIMALTECKEN (,)
+cost_ex_text = f"{cost_per_kg_ex:,.2f}".replace(",", " ").replace(".", ",")
+cost_dm_text = f"{cost_per_kg_dm:,.2f}".replace(",", " ").replace(".", ",")
+savings_kg_text = f"{savings_per_kg:,.2f}".replace(",", " ").replace(".", ",")
+pct_text = f"{percentage_savings:.1f}".replace(".", ",")
+
 col_c1, col_c2 = st.columns(2)
 with col_c1:
-    st.metric("**Traditional Exhaust**", f"€{cost_per_kg_ex:.3f} / kg")
+    st.metric("**Traditional Exhaust**", f"{curr} {cost_ex_text} / kg")
 
 with col_c2:
     st.metric(
         label="**Imogo Dye-Max**", 
-        value=f"€{cost_per_kg_dm:.3f} / kg",
-        delta=f"↓ €{savings_per_kg:.3f} / kg ({percentage_savings:.1f}%)"
+        value=f"{curr} {cost_dm_text} / kg",
+        delta=f"↓ {curr} {savings_kg_text} / kg ({pct_text}%)"
     )
 
 st.caption("Total cost per kg includes Dye, Chemistry, Water, Waste, Energy, Labor and Fiber loss")
@@ -307,17 +390,17 @@ st.caption("Total cost per kg includes Dye, Chemistry, Water, Waste, Energy, Lab
 # ====================== GRAPHS ======================
 st.markdown("### 📊 Visual Savings Overview")
 
-# Horizontal bar chart - Savings per category
+# Här skickar vi in de råa siffrorna från 'breakdown' så att Plotly kan rita grafen korrekt utan felmeddelanden
 fig1 = go.Figure(go.Bar(
     y=breakdown["Category"],
-    x=breakdown["Savings (€/year)"],
+    x=breakdown[f"Savings ({curr}/year)"],
     orientation='h',
-    marker_color=['#FF9800', '#FF5722', '#00B0FF', '#9C27B0', '#00C853', '#1E88E5', '#FF5252', '#1E88E5', '#10B981', '#F59E0B']
+    marker_color='#00B0FF'
 ))
 fig1.update_layout(
-    title="Årliga besparingar per kategori (€/year)",
+    title=f"Årliga besparingar per kategori ({curr}/year)",
     height=520,
-    xaxis_title="€ Savings",
+    xaxis_title=f"{curr} Savings",
     yaxis={'categoryorder':'total ascending'},
     margin=dict(l=250)
 )
@@ -332,77 +415,88 @@ fig2.add_trace(go.Bar(
     marker_color="#EF4444"
 ))
 fig2.add_trace(go.Bar(
-    name="Imogo Dye-Max",
+    name="Imogo Dye-max",
     x=["Total Cost / kg"],
     y=[cost_per_kg_dm],
     marker_color="#10B981"
 ))
 fig2.update_layout(
-    title="Total Cost per kg Fabric",
+    title=f"Total Cost per kg Fabric ({curr})",
     height=400,
     barmode='group',
-    yaxis_title="€ / kg",
+    bargroupgap=0.15,
+    yaxis_title=f"{curr} / kg",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
 )
 st.plotly_chart(fig2, use_container_width=True)
 
 # ====================== PDF REPORT ======================
-st.markdown("---")
-st.subheader("📄 Export Full Report")
+st.subheader("📄 Generate Report")
+
+# Förbered formaterade strängar för rapporten
+pdf_savings_text = f"{curr} {total_savings:,.0f}".replace(",", " ")
+pdf_investment_text = f"{curr} {investment:,.0f}".replace(",", " ")
+pdf_payback_text = f"{payback_months:.1f}".replace(".", ",")
+
+pdf_annual_ex = f"{annual_ex:,.0f}".replace(",", " ")
+pdf_annual_dm = f"{annual_dm:,.0f}".replace(",", " ")
+
+pdf_dye_sav_kg = f"{dye_ex - dye_dm:,.0f}".replace(",", " ")
+pdf_chem_sav_kg = f"{chem_sav_kg_total:,.0f}".replace(",", " ")
+pdf_water_sav_m3 = f"{(water_ex - water_dm)/1000:,.0f}".replace(",", " ")
+pdf_energy_sav_kwh = f"{energy_sav_kwh:,.0f}".replace(",", " ")
+pdf_co2_sav_ton = f"{co2_savings:.1f}".replace(".", ",")
 
 html_report = f"""
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Imogo Dye-max ROI Report</title>
-    <style>
-        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; line-height: 1.6; color: #1f2937; }}
-        h1 {{ text-align: center; color: #1E40AF; font-size: 28px; }}
-        h2 {{ color: #1E40AF; border-bottom: 3px solid #93C5FD; padding-bottom: 8px; }}
-        .metric {{ background: linear-gradient(135deg, #f0f9ff, #e0f2fe); padding: 20px; border-radius: 12px; margin: 15px 0; text-align: center; }}
-        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-        th, td {{ border: 1px solid #cbd5e1; padding: 12px; text-align: right; }}
-        th {{ background-color: #1E40AF; color: white; }}
-        .footer {{ text-align: center; margin-top: 60px; color: #64748b; }}
-    </style>
+<style>
+    body {{ font-family: Arial, sans-serif; margin: 30px; color: #333; }}
+    h1 {{ color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }}
+    h2 {{ color: #0f172a; margin-top: 20px; }}
+    .metric {{ background-color: #f8fafc; padding: 15px; border-radius: 8px; border-left: 5px solid #3b82f6; margin-bottom: 15px; }}
+    table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+    th, td {{ border: 1px solid #cbd5e1; padding: 10px; text-align: left; }}
+    th {{ background-color: #f1f5f9; color: #1e293b; }}
+</style>
 </head>
 <body>
-    <h1>Imogo Dye-max ROI Report</h1>
+    <h1>Imogo Dye-max ROI & Environmental Report</h1>
     <p style="text-align:center; color:#64748b;"><strong>Generated:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
     
     <div class="metric">
         <h2>Key Results</h2>
-        <p style="font-size:1.5em;"><strong>Annual Savings: €{total_savings:,.0f}</strong></p>
-        <p><strong>Payback Period: {payback_months:.1f} months</strong></p>
-        <p><strong>Investment Cost: €{investment:,.0f}</strong></p>
+        <p style="font-size:1.5em;"><strong>Annual Savings: {pdf_savings_text}</strong></p>
+        <p><strong>Payback Period: {pdf_payback_text} months</strong></p>
+        <p><strong>Investment Cost: {pdf_investment_text}</strong></p>
     </div>
 
     <h2>Production Summary</h2>
-    <p><strong>Traditional Exhaust:</strong> {annual_ex:,.0f} kg/year</p>
-    <p><strong>Imogo Dye-max:</strong> {annual_dm:,.0f} kg/year</p>
+    <p><strong>Traditional Exhaust:</strong> {pdf_annual_ex} kg/year</p>
+    <p><strong>Imogo Dye-max:</strong> {pdf_annual_dm} kg/year</p>
 
     <h2>Physical Savings</h2>
-    <p>Dye Stuff: <strong>{dye_ex - dye_dm:,.0f} kg/year</strong></p>
-    <p>Chemistry: <strong>{chem_ex - chem_dm:,.0f} kg/year</strong></p>
-    <p>Water: <strong>{(water_ex - water_dm)/1000:,.0f} m³/year</strong></p>
-    <p>Energy: <strong>{energy_sav_kwh:,.0f} kWh/year</strong></p>
-    <p>CO₂: <strong>{co2_savings:,.1f} tonnes/year</strong></p>
+    <p>Dye Stuff: <strong>{pdf_dye_sav_kg} kg/year</strong></p>
+    <p>Chemistry: <strong>{pdf_chem_sav_kg} kg/year</strong></p>
+    <p>Water: <strong>{pdf_water_sav_m3} m³/year</strong></p>
+    <p>Energy: <strong>{pdf_energy_sav_kwh} kWh/year</strong></p>
+    <p>CO₂: <strong>{pdf_co2_sav_ton} tonnes/year</strong></p>
 
     <h2>Monetary Savings Breakdown</h2>
     {df.to_html(index=False, classes='table')}
-
-    <div class="footer">
-        Imogo Dye-max ROI Calculator • Confidential
-    </div>
+    
+    <p style="margin-top: 30px; font-size: 0.9em; color: #64748b; text-align: center;">
+        This report was automatically generated by the Imogo ROI Calculator.
+    </p>
 </body>
 </html>
 """
 
-if st.download_button(
-    label="📥 Download Professional Report as HTML (Print → Save as PDF)",
+st.download_button(
+    label="📥 Download HTML Report (Save as PDF)",
     data=html_report,
-    file_name="Imogo_Exhaust_ROI_Report.html",
+    file_name=f"imogo_roi_report_{datetime.now().strftime('%Y%m%d')}.html",
     mime="text/html"
-):
-    st.success("✅ Report downloaded! Open the file → Ctrl+P → Save as PDF")
+)
+
