@@ -24,7 +24,7 @@ for k, v in defaults.items():
 
 # ====================== SIDEBAR ======================
 with st.sidebar:
-    st.header("🌍 Valuta & Växelkurs")
+    st.header("🌍 Currency settings")
     curr = st.text_input("Visningsvaluta (t.ex. EUR, SEK, USD)", value="EUR", max_chars=5)
     conv = st.number_input(f"Växelkurs (1 EUR = ? {curr})", value=1.0, step=0.1, format="%.2f")
 
@@ -36,7 +36,7 @@ with st.sidebar:
         st.session_state.prev_conv = conv
 
     st.markdown("---")
-    st.header(f"💲 Priser & Kostnader ({curr})")
+    st.header(f"💲 Costs ({curr})")
     
     # Inmatningsfälten är kopplade till session_state via 'key'. Ingen 'value' behövs då Streamlit hämtar från key automatiskt.
     elec_price = st.number_input(f"Electricity ({curr}/kWh)", step=0.01, format="%.2f", key="elec")
@@ -248,24 +248,6 @@ waste_sav = (waste_ex * batches_ex - waste_dm * batches_dm) * waste_price
 total_savings = dye_sav + water_sav + chem_sav + energy_sav + fiber_sav + waste_sav
 payback_months = (investment / total_savings * 12) if total_savings > 0 else 0
 co2_savings = energy_sav_kwh * co2_factor / 1000
-
-# ====================== ENERGY DEBUG ======================
-st.subheader("🔍 Base Energy Debug")
-col_b1, col_b2 = st.columns(2)
-with col_b1:
-    st.write("**Exhaust Base Energy**")
-    st.write(f"Machine op: {en_op_ex:.3f} kWh/kg")
-    st.write(f"Steam: {en_steam_ex:.3f} kWh/kg")
-    st.write(f"Drying: {en_dry_ex:.3f} kWh/kg")
-    st.write(f"**Sum per kg:** {en_op_ex + en_steam_ex + en_dry_ex:.3f} kWh/kg")
-    st.write(f"**Total Base:** {energy_base_ex:,.0f} kWh")
-with col_b2:
-    st.write("**Dye-Max Base Energy**")
-    st.write(f"Machine op: {en_op_dm:.3f} kWh/kg")
-    st.write(f"Steam: {en_steam_dm:.3f} kWh/kg")
-    st.write(f"Drying: {en_dry_dm:.3f} kWh/kg")
-    st.write(f"**Sum per kg:** {en_op_dm + en_steam_dm + en_dry_dm:.3f} kWh/kg")
-    st.write(f"**Total Base:** {energy_base_dm:,.0f} kWh")
 
 # ====================== SAVINGS OVERVIEW ======================
 st.subheader("📈 Savings Overview")
@@ -494,9 +476,8 @@ html_report = f"""
 """
 
 st.download_button(
-    label="📥 Download HTML Report (Save as PDF)",
+    label="📥 Download HTML Report (Print and Save as PDF)",
     data=html_report,
     file_name=f"imogo_roi_report_{datetime.now().strftime('%Y%m%d')}.html",
     mime="text/html"
 )
-
