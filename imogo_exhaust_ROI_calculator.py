@@ -24,10 +24,24 @@ for k, v in defaults.items():
 
 # ====================== SIDEBAR ======================
 with st.sidebar:
-    st.header("🌍 Currency settings")
-    curr = st.text_input("Visningsvaluta (t.ex. EUR, SEK, USD)", value="EUR", max_chars=5)
-    conv = st.number_input(f"Växelkurs (1 EUR = ? {curr})", value=1.0, step=0.1, format="%.2f")
+    # 👤 Kunduppgifter
+    customer_name = st.text_input("Kundens namn", value="", key="customer_name_input")
 
+# 🌍 Currency settings
+with st.sidebar:
+    curr = st.text_input("Visningsvaluta (t.ex. EUR, SEK, USD)", value="EUR").strip().upper()
+    
+    # Hämta det inskrivna värdet från minnet (eller 1.00 första gången)
+    current_rate = st.session_state.get("conv_key", 1.00)
+    
+    # Skapa fältet med den dynamiska rubriken
+    conv = st.number_input(
+        f"Växelkurs (1 EUR = {current_rate:.2f} {curr})", 
+        value=1.00, 
+        step=0.10, 
+        format="%.2f",
+        key="conv_key"
+    )
     # OM användaren ändrar växelkursen, räkna om alla värden i session_state
     if conv != st.session_state.prev_conv:
         factor = conv / st.session_state.prev_conv
@@ -429,6 +443,9 @@ pdf_water_sav_m3 = f"{(water_ex - water_dm)/1000:,.0f}".replace(",", " ")
 pdf_energy_sav_kwh = f"{energy_sav_kwh:,.0f}".replace(",", " ")
 pdf_co2_sav_ton = f"{co2_savings:.1f}".replace(".", ",")
 
+# Skapa en snygg kundrad om namn har angivits
+customer_line = f"<p style='text-align:center; font-size:1.2em; color:#1e3a8a; margin-top:-10px;'><strong>Prepared for:</strong> {customer_name}</p>" if customer_name else ""
+
 html_report = f"""
 <!DOCTYPE html>
 <html>
@@ -445,8 +462,9 @@ html_report = f"""
 </head>
 <body>
     <h1>Imogo Dye-max ROI & Environmental Report</h1>
+    {customer_line}
     <p style="text-align:center; color:#64748b;"><strong>Generated:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
-    
+        
     <div class="metric">
         <h2>Key Results</h2>
         <p style="font-size:1.5em;"><strong>Annual Savings: {pdf_savings_text}</strong></p>
