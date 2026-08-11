@@ -46,6 +46,8 @@ def check_password():
     else:
         # Password correct
         return True
+if not check_password():
+    st.stop()
 
 # 🔑 HÄR ANROPAS FUNKTIONEN (Stoppar appen om lösenordet är fel/saknas)
 if not check_password():
