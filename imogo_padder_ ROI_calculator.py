@@ -47,7 +47,7 @@ if 'initialized' not in st.session_state:
     st.session_state.currency_rate = 1.0
     st.session_state.prev_rate = 1.0
     st.session_state.ui_elec = 0.10
-    st.session_state.ui_water = 0.0005
+    st.session_state.ui_water = 0.0001
     st.session_state.ui_dye = 5.0
     st.session_state.ui_chem_a = 2.0
     st.session_state.ui_chem_b = 3.0
