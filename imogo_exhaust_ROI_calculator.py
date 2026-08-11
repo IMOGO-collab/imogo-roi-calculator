@@ -6,50 +6,41 @@ from datetime import datetime
 # ⚠️ VIKTIGT: st.set_page_config MÅSTE ligga först av alla Streamlit-kommandon!
 st.set_page_config(page_title="Imogo Dye-max vs Exhaust ROI", layout="wide", page_icon="💰")
 
-# ====================== LÖSENORDSSKYDD ======================
+# ====================== ROLE-BASED AUTHENTICATION ======================
 def check_password():
-    """Returns True if the user has entered the correct password."""
-    
-    # Hämta från Streamlit Secrets (molnet), eller använd ett lokalt reservlösenord
+    """Authenticates users and assigns roles (admin / agent)."""
+
+    DEFAULT_USERS = {
+        "Imogo": {"role": "admin", "name": "Imogo Admin"},
+        "External": {"role": "agent", "name": "External Agent"}
+    }
+
+    # Säkert försök: Om st.secrets saknas helt lokalt fångar try-blocket upp kraschen
     try:
-        CORRECT_PASSWORD = st.secrets["APP_PASSWORD"]
-    except (KeyError, FileNotFoundError):
-        CORRECT_PASSWORD = "Imogo2026"  # Local fallback password
+        users = st.secrets["users"]
+    except Exception:
+        users = DEFAULT_USERS
 
     def password_entered():
-        if st.session_state.get("password_input") == CORRECT_PASSWORD:
+        user_input = st.session_state.get("password_input")
+        if user_input in users:
             st.session_state["password_correct"] = True
+            st.session_state["user_role"] = users[user_input]["role"]
+            st.session_state["user_name"] = users[user_input]["name"]
             if "password_input" in st.session_state:
-                del st.session_state["password_input"]  # Rensa fältet ur minnet
+                del st.session_state["password_input"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # First time visiting
-        st.text_input(
-            "Enter password to gain access:", 
-            type="password", 
-            on_change=password_entered, 
-            key="password_input"
-        )
+        st.text_input("Enter password to access Imogo ROI Tool:", type="password", on_change=password_entered, key="password_input")
         return False
     elif not st.session_state["password_correct"]:
-        # Wrong password entered
-        st.text_input(
-            "Enter password to gain access:", 
-            type="password", 
-            on_change=password_entered, 
-            key="password_input"
-        )
+        st.text_input("Enter password to access Imogo ROI Tool:", type="password", on_change=password_entered, key="password_input")
         st.error("🔒 Incorrect password. Please try again.")
         return False
     else:
-        # Password correct
         return True
-# Kör lösenordskontrollen
-if not check_password():
-    st.stop()
-
 # ====================== DIN APP BÖRJAR HÄR ======================
 st.title("💰 Imogo Dye-Max vs Traditional Exhaust – ROI Calculator")
 
