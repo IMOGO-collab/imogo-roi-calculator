@@ -8,13 +8,13 @@ st.set_page_config(page_title="Imogo Dye-max vs Exhaust ROI", layout="wide", pag
 
 # ====================== LÖSENORDSSKYDD ======================
 def check_password():
-    """Returnerar True om användaren har uppgett rätt lösenord."""
+    """Returns True if the user has entered the correct password."""
     
     # Hämta från Streamlit Secrets (molnet), eller använd ett lokalt reservlösenord
     try:
         CORRECT_PASSWORD = st.secrets["APP_PASSWORD"]
     except (KeyError, FileNotFoundError):
-        CORRECT_PASSWORD = "Imogo2026"  # Används när du kör lokalt på din dator
+        CORRECT_PASSWORD = "Imogo2026"  # Local fallback password
 
     def password_entered():
         if st.session_state.get("password_input") == CORRECT_PASSWORD:
@@ -25,35 +25,27 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # Första gången besökaren kommer till sidan
+        # First time visiting
         st.text_input(
-            "Ange lösenord för att få åtkomst:", 
+            "Enter password to gain access:", 
             type="password", 
             on_change=password_entered, 
             key="password_input"
         )
         return False
     elif not st.session_state["password_correct"]:
-        # Om användaren skrev fel lösenord
+        # Wrong password entered
         st.text_input(
-            "Ange lösenord för att få åtkomst:", 
+            "Enter password to gain access:", 
             type="password", 
             on_change=password_entered, 
             key="password_input"
         )
-        st.error("🔒 Fel lösenord. Försök igen.")
+        st.error("🔒 Incorrect password. Please try again.")
         return False
     else:
-        # Lösenordet var rätt
+        # Password correct
         return True
-
-# Om lösenordet inte är rätt – stoppa koden här så syns inget annat
-if not check_password():
-    st.stop()
-
-# Om lösenordet inte är rätt – stoppa koden här så syns inget annat
-if not check_password():
-    st.stop()
 
 # ====================== DIN APP BÖRJAR HÄR ======================
 st.title("💰 Imogo Dye-Max vs Traditional Exhaust – ROI Calculator")
