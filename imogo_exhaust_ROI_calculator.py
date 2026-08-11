@@ -3,7 +3,59 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 
+# ⚠️ VIKTIGT: st.set_page_config MÅSTE ligga först av alla Streamlit-kommandon!
 st.set_page_config(page_title="Imogo Dye-max vs Exhaust ROI", layout="wide", page_icon="💰")
+
+# ====================== LÖSENORDSSKYDD ======================
+def check_password():
+    """Returnerar True om användaren har uppgett rätt lösenord."""
+    
+    # Hämta från Streamlit Secrets (molnet), eller använd ett lokalt reservlösenord
+    try:
+        CORRECT_PASSWORD = st.secrets["APP_PASSWORD"]
+    except (KeyError, FileNotFoundError):
+        CORRECT_PASSWORD = "Imogo2026"  # Används när du kör lokalt på din dator
+
+    def password_entered():
+        if st.session_state.get("password_input") == CORRECT_PASSWORD:
+            st.session_state["password_correct"] = True
+            if "password_input" in st.session_state:
+                del st.session_state["password_input"]  # Rensa fältet ur minnet
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # Första gången besökaren kommer till sidan
+        st.text_input(
+            "Ange lösenord för att få åtkomst:", 
+            type="password", 
+            on_change=password_entered, 
+            key="password_input"
+        )
+        return False
+    elif not st.session_state["password_correct"]:
+        # Om användaren skrev fel lösenord
+        st.text_input(
+            "Ange lösenord för att få åtkomst:", 
+            type="password", 
+            on_change=password_entered, 
+            key="password_input"
+        )
+        st.error("🔒 Fel lösenord. Försök igen.")
+        return False
+    else:
+        # Lösenordet var rätt
+        return True
+
+# Om lösenordet inte är rätt – stoppa koden här så syns inget annat
+if not check_password():
+    st.stop()
+
+# Om lösenordet inte är rätt – stoppa koden här så syns inget annat
+if not check_password():
+    st.stop()
+
+# ====================== DIN APP BÖRJAR HÄR ======================
 st.title("💰 Imogo Dye-Max vs Traditional Exhaust – ROI Calculator")
 
 # ====================== INITIALISERA VALUTA-STATE ======================
@@ -23,20 +75,38 @@ for k, v in defaults.items():
         st.session_state[k] = float(v)
 
 # ====================== SIDEBAR ======================
+
+# ====================== INITIALISERA VALUTA-STATE ======================
+# Vi sätter upp standardvärden i Euro som bas. Dessa anpassas dynamiskt om växelkursen ändras.
+if 'prev_conv' not in st.session_state:
+    st.session_state.prev_conv = 1.0
+
+defaults = {
+    "elec": 0.10, "water": 0.0001, "dye_p": 5.0,
+    "wet_p": 0.8, "soda_p": 0.35, "cau_p": 0.25, "seq_p": 1.2,
+    "lev_p": 1.0, "lub_p": 1.0, "anti_p": 1.2, "salt_p": 0.1,
+    "fiber_p": 2.0, "labor": 1.0, "waste_p": 0.002, "inv": 635000.0
+}
+
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = float(v)
+
+# ====================== SIDEBAR ======================
 with st.sidebar:
-    # 👤 Kunduppgifter
-    customer_name = st.text_input("Kundens namn", value="", key="customer_name_input")
+    # 👤 Customer name
+    customer_name = st.text_input("Customer name", value="", key="customer_name_input")
 
 # 🌍 Currency settings
 with st.sidebar:
-    curr = st.text_input("Visningsvaluta (t.ex. EUR, SEK, USD)", value="EUR").strip().upper()
+    curr = st.text_input("Currency (i.e. EUR, SEK, USD)", value="EUR").strip().upper()
     
     # Hämta det inskrivna värdet från minnet (eller 1.00 första gången)
     current_rate = st.session_state.get("conv_key", 1.00)
     
     # Skapa fältet med den dynamiska rubriken
     conv = st.number_input(
-        f"Växelkurs (1 EUR = {current_rate:.2f} {curr})", 
+        f"Exchange rate (1 EUR = {current_rate:.2f} {curr})", 
         value=1.00, 
         step=0.10, 
         format="%.2f",
@@ -81,17 +151,17 @@ col_ex, col_dm, col_shared = st.columns([2, 2, 2])
 
 with col_ex:
     st.subheader("🔴 Traditional Exhaust")
-    batch_ex = st.number_input("Batch size (kg)", value=200, key="batch_ex")
-    ports_ex = st.number_input("Number of ports", value=5, key="ports_ex")
+    batch_ex = st.number_input("Machine capacity (kg)", value=250, key="batch_ex")
+    ports_ex = st.number_input("Number of machines", value=4, key="ports_ex")
     liq_ex = st.number_input("Liquid ratio (L/kg)", value=5.0, key="liq_ex")
     
     waste_ex = batch_ex * liq_ex
     total_waste_all_ports = waste_ex * ports_ex
-    st.info(f"**Waste per color change:** {waste_ex:,.0f} L")
-    st.info(f"**Total waste in all ports:** {total_waste_all_ports:,.0f} L")
+    st.info(f"**Waste per color change per machine:** {waste_ex:,.0f} L")
+    st.info(f"**Total waste in all machines:** {total_waste_all_ports:,.0f} L")
 
     batches_per_day_ex = ports_ex * 6
-    st.info(f"**Batches per day:** {batches_per_day_ex} (6 per port)")
+    st.info(f"**Batches per day:** {batches_per_day_ex} (6 per machine)")
 
     fiber_loss_ex = st.number_input("Fiber loss (%)", value=2.0, step=0.1, key="fl_ex") / 100
 
@@ -101,58 +171,63 @@ with col_dm:
     liq_dm = st.number_input("Liquid ratio (L/kg)", value=1.3, key="liq_dm")
     waste_dm = st.number_input("Waste/changeover (L)", value=50, key="waste_dm")
     batches_per_day_dm = st.number_input("Batches per day", value=15.00, step=0.25, key="bpd_dm")
-    fiber_loss_dm = st.number_input("Fiber loss (%)", value=0.3, step=0.1, key="fl_dm") / 100
-
     changeover_min_dm = st.number_input("Changeover time per batch (min)", value=30, step=1, key="ch_dm")
+    fiber_loss_dm = st.number_input("Fiber loss (%)", value=0.3, step=0.1, key="fl_dm") / 100
 
 with col_shared:
     st.subheader("Common")
     fabric_width = st.number_input("Fabric width (m)", value=2.2, key="width")
     gsm = st.number_input("Fabric GSM (kg/m²)", value=0.2, key="gsm")
     days_year = st.number_input("Working days/year", value=300, key="days")
-
-# ====================== PRODUCTION SPEED FOR DYE-MAX ======================
-daily_kg_dm = batch_dm * batches_per_day_dm
-daily_meters_dm = daily_kg_dm / (fabric_width * gsm) if (fabric_width * gsm) > 0 else 0
-effective_hours_dm = 24 - (batches_per_day_dm * changeover_min_dm / 60.0)
-production_speed_dm = daily_meters_dm / (effective_hours_dm * 60) if effective_hours_dm > 0 else 0
-
-st.info(f"**Imogo Dye-Max Production speed:** **{production_speed_dm:,.1f} m/min** "
-        f"({daily_kg_dm:,.0f} kg/day | Effective {effective_hours_dm:.1f} h/day)")
+    hours_day = st.number_input("Working hours/day", value=24.0, step=1.0, key="hours_day")
 
 # ====================== PRODUCTION VOLUME SUMMARY ======================
-st.subheader("📊 Production Volume Summary")
-p1, p2 = st.columns(2)
+st.subheader("📊 Production Volume Summary & Flexibility")
+p1, p2, p3 = st.columns(3)
+
+# Använd de befintliga uträknade totala batcherna per år
+total_batches_ex = batches_per_day_ex * days_year
+total_batches_dm = batches_per_day_dm * days_year
+
+# Räkna ut den procentuella skillnaden mellan Dye-Max och Exhaust
+if total_batches_ex > 0:
+    pct_diff_batches = ((total_batches_dm - total_batches_ex) / total_batches_ex) * 100
+else:
+    pct_diff_batches = 0.0
+
+# 1. Traditional Exhaust
 with p1:
     ex_annual_text = f"{batch_ex * batches_per_day_ex * days_year:,.0f}".replace(",", " ")
     st.metric("**Traditional Exhaust**", f"{ex_annual_text} kg/year")
     
     ex_daily_text = f"{batch_ex * batches_per_day_ex:,.0f}".replace(",", " ")
-    ex_batches_text = f"{batches_per_day_ex * days_year:,.0f}".replace(",", " ")
+    ex_batches_text = f"{total_batches_ex:,.0f}".replace(",", " ")
     st.caption(f"{ex_daily_text} kg/day | {ex_batches_text} batches/year")
-    
+
+# 2. Imogo Dye-Max
 with p2:
     annual_dm = batch_dm * batches_per_day_dm * days_year
     extra = annual_dm - (batch_ex * batches_per_day_ex * days_year)
     
     dm_annual_text = f"{annual_dm:,.0f}".replace(",", " ")
-    extra_text = f"↑ {extra:,.0f}".replace(",", " ")
-    st.metric("**Imogo Dye-Max**", f"{dm_annual_text} kg/year", f"{extra_text} kg/year extra")
+    extra_text = f"↑ {extra:,.0f} kg/year extra" if extra != 0 else "Same volume"
+    st.metric("**Imogo Dye-Max**", f"{dm_annual_text} kg/year", extra_text)
     
     dm_daily_text = f"{batch_dm * batches_per_day_dm:,.0f}".replace(",", " ")
-    dm_batches_text = f"{batches_per_day_dm * days_year:,.0f}".replace(",", " ")
+    dm_batches_text = f"{total_batches_dm:,.0f}".replace(",", " ")
     st.caption(f"{dm_daily_text} kg/day | {dm_batches_text} batches/year")
 
-# Production speed for Dye-Max
-daily_kg_dm = batch_dm * batches_per_day_dm
-daily_meters_dm = daily_kg_dm / (fabric_width * gsm) if (fabric_width * gsm) > 0 else 0
-production_speed_dm = daily_meters_dm / (24 * 60)
-
-# Formatera hastigheten med svenskt decimaltecken (,) och mellanslag för tusental
-speed_text = f"{production_speed_dm:,.1f}".replace(",", " ").replace(".", ",")
-daily_kg_dm_text = f"{daily_kg_dm:,.0f}".replace(",", " ")
-
-st.info(f"**Imogo Dye-Max Production speed:** **{speed_text} m/min** ({daily_kg_dm_text} kg/day)")
+# 3. Flexibilitet (Procentuell jämförelse av totalt antal batcher)
+with p3:
+    sign = "+" if pct_diff_batches >= 0 else ""
+    batch_comp_text = f"{total_batches_dm:,.0f} vs {total_batches_ex:,.0f} total batches/yr".replace(",", " ")
+    
+    st.metric(
+        "**Batch Capacity / Flexibility**", 
+        f"{sign}{pct_diff_batches:.0f}%", 
+        batch_comp_text
+    )
+    st.caption("Difference in total yearly batch capacity")
 
 # ====================== ENERGY ======================
 st.subheader("⚡ Energy per kg fabric")
@@ -426,10 +501,10 @@ fig2.update_layout(
 )
 st.plotly_chart(fig2, use_container_width=True)
 
-# ====================== PDF REPORT ======================
+# ====================== REPORT GENERATION ======================
 st.subheader("📄 Generate Report")
 
-# Förbered formaterade strängar för rapporten
+# Formaterade strängar för resultat
 pdf_savings_text = f"{curr} {total_savings:,.0f}".replace(",", " ")
 pdf_investment_text = f"{curr} {investment:,.0f}".replace(",", " ")
 pdf_payback_text = f"{payback_months:.1f}".replace(".", ",")
@@ -443,20 +518,24 @@ pdf_water_sav_m3 = f"{(water_ex - water_dm)/1000:,.0f}".replace(",", " ")
 pdf_energy_sav_kwh = f"{energy_sav_kwh:,.0f}".replace(",", " ")
 pdf_co2_sav_ton = f"{co2_savings:.1f}".replace(".", ",")
 
-# Skapa en snygg kundrad om namn har angivits
 customer_line = f"<p style='text-align:center; font-size:1.2em; color:#1e3a8a; margin-top:-10px;'><strong>Prepared for:</strong> {customer_name}</p>" if customer_name else ""
+
+dye_ex_pct_str = f"{dye_a_ex_owf * 100:.2f}%"
+dye_dm_pct_str = f"{dye_a_dm_owf * 100:.2f}% (Reduction: {dye_reduction_pct:.1f}%)"
+water_price_m3 = water_price * 1000
 
 html_report = f"""
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
 <style>
     body {{ font-family: Arial, sans-serif; margin: 30px; color: #333; }}
     h1 {{ color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }}
-    h2 {{ color: #0f172a; margin-top: 20px; }}
+    h2 {{ color: #0f172a; margin-top: 25px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px; }}
     .metric {{ background-color: #f8fafc; padding: 15px; border-radius: 8px; border-left: 5px solid #3b82f6; margin-bottom: 15px; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
-    th, td {{ border: 1px solid #cbd5e1; padding: 10px; text-align: left; }}
+    th, td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; font-size: 0.9em; }}
     th {{ background-color: #f1f5f9; color: #1e293b; }}
 </style>
 </head>
@@ -486,6 +565,67 @@ html_report = f"""
     <h2>Monetary Savings Breakdown</h2>
     {df.to_html(index=False, classes='table')}
     
+    <h2>All Input Parameters & Assumptions</h2>
+    <table>
+        <tr>
+            <th>Category</th>
+            <th>Parameter</th>
+            <th>Value</th>
+        </tr>
+        <!-- General Production -->
+        <tr><td><strong>Production (Common)</strong></td><td>Working days / year</td><td>{days_year} days</td></tr>
+        <tr><td><strong>Production (Common)</strong></td><td>Working hours / day</td><td>{hours_day} h</td></tr>
+        <tr><td><strong>Production (Common)</strong></td><td>Fabric width & GSM</td><td>{fabric_width} m / {gsm} kg/m²</td></tr>
+        
+        <!-- Exhaust Parameters & Recipe -->
+        <tr><td><strong>Traditional Exhaust</strong></td><td>Machine Capacity & Batches/day</td><td>{batch_ex} kg / {batches_per_day_ex} batches/day</td></tr>
+        <tr><td><strong>Traditional Exhaust</strong></td><td>Number of Machines</td><td>{ports_ex}</td></tr>
+        <tr><td><strong>Traditional Exhaust</strong></td><td>Liquor Ratio</td><td>1:{liq_ex} L/kg</td></tr>
+        <tr><td><strong>Traditional Exhaust</strong></td><td>Fiber Loss</td><td>{fiber_loss_ex*100:.1f}%</td></tr>
+        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Dye OWF</td><td>{dye_ex_pct_str}</td></tr>
+        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Wetting Agent</td><td>{wetting_ex} g/L</td></tr>
+        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Soda Ash</td><td>{soda_ex} g/L</td></tr>
+        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>NAOH 50%</td><td>{caustic_ex} g/L</td></tr>
+        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Sequestering</td><td>{seq_ex} g/L</td></tr>
+        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Levelling</td><td>{lev_ex} g/L</td></tr>
+        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Lubrication</td><td>{lub_ex} g/L</td></tr>
+        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Anti Foaming</td><td>{anti_ex} g/L</td></tr>
+        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Salt</td><td>{salt_ex} g/L</td></tr>
+
+        <!-- Dye-Max Parameters & Recipe -->
+        <tr><td><strong>Imogo Dye-Max</strong></td><td>Batch Size & Batches/day</td><td>{batch_dm} kg / {batches_per_day_dm} batches/day</td></tr>
+        <tr><td><strong>Imogo Dye-Max</strong></td><td>Changeover Time</td><td>{changeover_min_dm} min</td></tr>
+        <tr><td><strong>Imogo Dye-Max</strong></td><td>Liquor Ratio</td><td>{liq_dm} L/kg</td></tr>
+        <tr><td><strong>Imogo Dye-Max</strong></td><td>Waste per Changeover</td><td>{waste_dm} L</td></tr>
+        <tr><td><strong>Imogo Dye-Max</strong></td><td>Fiber Loss</td><td>{fiber_loss_dm*100:.1f}%</td></tr>
+        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Dye OWF</td><td>{dye_dm_pct_str}</td></tr>
+        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Wetting Agent</td><td>{wetting_dm} g/L</td></tr>
+        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Soda Ash</td><td>{soda_dm} g/L</td></tr>
+        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>NAOH 50%</td><td>{caustic_dm} g/L</td></tr>
+        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Sequestering</td><td>{seq_dm} g/L</td></tr>
+        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Levelling</td><td>{lev_dm} g/L</td></tr>
+        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Lubrication</td><td>{lub_dm} g/L</td></tr>
+        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Anti Foaming</td><td>{anti_dm} g/L</td></tr>
+        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Salt</td><td>{salt_dm} g/L</td></tr>
+
+        <!-- Unit Costs & Prices -->
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Electricity Price</td><td>{elec_price:.2f} {curr}/kWh</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Water Price</td><td>{water_price:.5f} {curr}/L ({water_price_m3:.2f} {curr}/m³)</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Dye Price</td><td>{dye_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Wetting Agent Price</td><td>{wetting_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Soda Ash Price</td><td>{soda_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>NAOH 50% Price</td><td>{caustic_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Sequestering Price</td><td>{seq_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Levelling Price</td><td>{lev_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Lubrication Price</td><td>{lub_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Anti Foaming Price</td><td>{anti_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Salt Price</td><td>{salt_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Fiber / Fabric Cost</td><td>{fiber_price:.2f} {curr}/kg</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Labor Price</td><td>{labor_price:.2f} {curr}/man-hour</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>Waste Handling Price</td><td>{waste_price:.5f} {curr}/L</td></tr>
+        <tr><td><strong>Costs & Unit Rates</strong></td><td>CO₂ Factor</td><td>{co2_factor:.3f} kg/kWh</td></tr>    
+    </table>
+
     <p style="margin-top: 30px; font-size: 0.9em; color: #64748b; text-align: center;">
         This report was automatically generated by the Imogo ROI Calculator.
     </p>
