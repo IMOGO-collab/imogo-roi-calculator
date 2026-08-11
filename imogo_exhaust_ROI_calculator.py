@@ -46,14 +46,11 @@ def check_password():
     else:
         # Password correct
         return True
+
+# 🔑 ANROPA FUNKTIONEN BARA EN GÅNG HÄR
 if not check_password():
     st.stop()
 
-# 🔑 HÄR ANROPAS FUNKTIONEN (Stoppar appen om lösenordet är fel/saknas)
-if not check_password():
-    st.stop()
-
-# ====================== DIN APP BÖRJAR HÄR ======================
 # ====================== DIN APP BÖRJAR HÄR ======================
 st.title("💰 Imogo Dye-Max vs Traditional Exhaust – ROI Calculator")
 
@@ -74,29 +71,10 @@ for k, v in defaults.items():
         st.session_state[k] = float(v)
 
 # ====================== SIDEBAR ======================
-
-# ====================== INITIALISERA VALUTA-STATE ======================
-# Vi sätter upp standardvärden i Euro som bas. Dessa anpassas dynamiskt om växelkursen ändras.
-if 'prev_conv' not in st.session_state:
-    st.session_state.prev_conv = 1.0
-
-defaults = {
-    "elec": 0.10, "water": 0.0001, "dye_p": 5.0,
-    "wet_p": 0.8, "soda_p": 0.35, "cau_p": 0.25, "seq_p": 1.2,
-    "lev_p": 1.0, "lub_p": 1.0, "anti_p": 1.2, "salt_p": 0.1,
-    "fiber_p": 2.0, "labor": 1.0, "waste_p": 0.002, "inv": 635000.0
-}
-
-for k, v in defaults.items():
-    if k not in st.session_state:
-        st.session_state[k] = float(v)
-
-# ====================== SIDEBAR ======================
+with st.sidebar:
     # 👤 Customer name
     customer_name = st.text_input("Customer name", value="", key="customer_name_input")
-
-# 🌍 Currency settings
-with st.sidebar:
+    
     curr = st.text_input("Currency (i.e. EUR, SEK, USD)", value="EUR").strip().upper()
     
     # Hämta det inskrivna värdet från minnet (eller 1.00 första gången)
@@ -120,7 +98,6 @@ with st.sidebar:
     st.markdown("---")
     st.header(f"💲 Costs ({curr})")
     
-    # Inmatningsfälten är kopplade till session_state via 'key'. Ingen 'value' behövs då Streamlit hämtar från key automatiskt.
     elec_price = st.number_input(f"Electricity ({curr}/kWh)", step=0.01, format="%.2f", key="elec")
     water_price = st.number_input(f"Water ({curr}/L)", step=0.0001, format="%.5f", key="water")
     dye_price = st.number_input(f"Dye stuff ({curr}/kg)", step=0.5, format="%.2f", key="dye_p")
