@@ -521,7 +521,7 @@ pdf_co2_sav_ton = f"{co2_savings:.1f}".replace(".", ",")
 customer_line = f"<p style='text-align:center; font-size:1.2em; color:#1e3a8a; margin-top:-10px;'><strong>Prepared for:</strong> {customer_name}</p>" if customer_name else ""
 
 dye_ex_pct_str = f"{dye_a_ex_owf * 100:.2f}%"
-dye_dm_pct_str = f"{dye_a_dm_owf * 100:.2f}% (Reduction: {dye_reduction_pct:.1f}%)"
+dye_dm_pct_str = f"{dye_a_dm_owf * 100:.2f}%"
 water_price_m3 = water_price * 1000
 
 html_report = f"""
@@ -536,7 +536,8 @@ html_report = f"""
     .metric {{ background-color: #f8fafc; padding: 15px; border-radius: 8px; border-left: 5px solid #3b82f6; margin-bottom: 15px; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
     th, td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; font-size: 0.9em; }}
-    th {{ background-color: #f1f5f9; color: #1e293b; }}
+    th {{ background-color: #f8fafc; color: #1e293b; }}
+    .section-header {{ background-color: #e2e8f0; font-weight: bold; text-align: center; font-size: 0.95em; }}
 </style>
 </head>
 <body>
@@ -565,65 +566,65 @@ html_report = f"""
     <h2>Monetary Savings Breakdown</h2>
     {df.to_html(index=False, classes='table')}
     
-    <h2>All Input Parameters & Assumptions</h2>
+    <h2>Process & Recipe Comparison</h2>
     <table>
         <tr>
-            <th>Category</th>
-            <th>Parameter</th>
-            <th>Value</th>
+            <th style="width: 34%;">Parameter</th>
+            <th style="width: 33%;">Traditional Exhaust</th>
+            <th style="width: 33%;">Imogo Dye-Max</th>
+        </tr>
+        <!-- Machine & Process -->
+        <tr><td colspan="3" class="section-header">Machine & Process Parameters</td></tr>
+        <tr><td>Machine Capacity</td><td>{batch_ex} kg</td><td>{batch_dm} kg</td></tr>
+        <tr><td>Batches per day</td><td>{batches_per_day_ex} batches</td><td>{batches_per_day_dm} batches</td></tr>
+        <tr><td>Number of Machines</td><td>{ports_ex}</td><td>-</td></tr>
+        <tr><td>Changeover Time</td><td>-</td><td>{changeover_min_dm} min</td></tr>
+        <tr><td>Liquor Ratio</td><td>1:{liq_ex}</td><td>{liq_dm} L/kg</td></tr>
+        <tr><td>Waste per Changeover</td><td>{waste_ex:,.0f} L</td><td>{waste_dm} L</td></tr>
+        <tr><td>Fiber Loss</td><td>{fiber_loss_ex*100:.1f}%</td><td>{fiber_loss_dm*100:.1f}%</td></tr>
+        
+        <!-- Recipe -->
+        <tr><td colspan="3" class="section-header">Chemistry Recipe</td></tr>
+        <tr><td>Dye OWF</td><td>{dye_ex_pct_str}</td><td>{dye_dm_pct_str} (Red: {dye_reduction_pct:.1f}%)</td></tr>
+        <tr><td>Wetting Agent</td><td>{wetting_ex} g/L</td><td>{wetting_dm} g/L</td></tr>
+        <tr><td>Soda Ash</td><td>{soda_ex} g/L</td><td>{soda_dm} g/L</td></tr>
+        <tr><td>NAOH 50%</td><td>{caustic_ex} g/L</td><td>{caustic_dm} g/L</td></tr>
+        <tr><td>Sequestering</td><td>{seq_ex} g/L</td><td>{seq_dm} g/L</td></tr>
+        <tr><td>Levelling</td><td>{lev_ex} g/L</td><td>{lev_dm} g/L</td></tr>
+        <tr><td>Lubrication</td><td>{lub_ex} g/L</td><td>{lub_dm} g/L</td></tr>
+        <tr><td>Anti Foaming</td><td>{anti_ex} g/L</td><td>{anti_dm} g/L</td></tr>
+        <tr><td>Salt</td><td>{salt_ex} g/L</td><td>{salt_dm} g/L</td></tr>
+    </table>
+
+    <h2>General Parameters & Unit Costs</h2>
+    <table>
+        <tr>
+            <th style="width: 50%;">Parameter</th>
+            <th style="width: 50%;">Value</th>
         </tr>
         <!-- General Production -->
-        <tr><td><strong>Production (Common)</strong></td><td>Working days / year</td><td>{days_year} days</td></tr>
-        <tr><td><strong>Production (Common)</strong></td><td>Working hours / day</td><td>{hours_day} h</td></tr>
-        <tr><td><strong>Production (Common)</strong></td><td>Fabric width & GSM</td><td>{fabric_width} m / {gsm} kg/m²</td></tr>
+        <tr><td colspan="2" class="section-header">General Production</td></tr>
+        <tr><td>Working days / year</td><td>{days_year} days</td></tr>
+        <tr><td>Working hours / day</td><td>{hours_day} h</td></tr>
+        <tr><td>Fabric width & GSM</td><td>{fabric_width} m / {gsm} kg/m²</td></tr>
         
-        <!-- Exhaust Parameters & Recipe -->
-        <tr><td><strong>Traditional Exhaust</strong></td><td>Machine Capacity & Batches/day</td><td>{batch_ex} kg / {batches_per_day_ex} batches/day</td></tr>
-        <tr><td><strong>Traditional Exhaust</strong></td><td>Number of Machines</td><td>{ports_ex}</td></tr>
-        <tr><td><strong>Traditional Exhaust</strong></td><td>Liquor Ratio</td><td>1:{liq_ex} L/kg</td></tr>
-        <tr><td><strong>Traditional Exhaust</strong></td><td>Fiber Loss</td><td>{fiber_loss_ex*100:.1f}%</td></tr>
-        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Dye OWF</td><td>{dye_ex_pct_str}</td></tr>
-        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Wetting Agent</td><td>{wetting_ex} g/L</td></tr>
-        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Soda Ash</td><td>{soda_ex} g/L</td></tr>
-        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>NAOH 50%</td><td>{caustic_ex} g/L</td></tr>
-        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Sequestering</td><td>{seq_ex} g/L</td></tr>
-        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Levelling</td><td>{lev_ex} g/L</td></tr>
-        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Lubrication</td><td>{lub_ex} g/L</td></tr>
-        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Anti Foaming</td><td>{anti_ex} g/L</td></tr>
-        <tr><td><strong>Traditional Exhaust Recipe</strong></td><td>Salt</td><td>{salt_ex} g/L</td></tr>
-
-        <!-- Dye-Max Parameters & Recipe -->
-        <tr><td><strong>Imogo Dye-Max</strong></td><td>Batch Size & Batches/day</td><td>{batch_dm} kg / {batches_per_day_dm} batches/day</td></tr>
-        <tr><td><strong>Imogo Dye-Max</strong></td><td>Changeover Time</td><td>{changeover_min_dm} min</td></tr>
-        <tr><td><strong>Imogo Dye-Max</strong></td><td>Liquor Ratio</td><td>{liq_dm} L/kg</td></tr>
-        <tr><td><strong>Imogo Dye-Max</strong></td><td>Waste per Changeover</td><td>{waste_dm} L</td></tr>
-        <tr><td><strong>Imogo Dye-Max</strong></td><td>Fiber Loss</td><td>{fiber_loss_dm*100:.1f}%</td></tr>
-        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Dye OWF</td><td>{dye_dm_pct_str}</td></tr>
-        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Wetting Agent</td><td>{wetting_dm} g/L</td></tr>
-        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Soda Ash</td><td>{soda_dm} g/L</td></tr>
-        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>NAOH 50%</td><td>{caustic_dm} g/L</td></tr>
-        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Sequestering</td><td>{seq_dm} g/L</td></tr>
-        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Levelling</td><td>{lev_dm} g/L</td></tr>
-        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Lubrication</td><td>{lub_dm} g/L</td></tr>
-        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Anti Foaming</td><td>{anti_dm} g/L</td></tr>
-        <tr><td><strong>Imogo Dye-Max Recipe</strong></td><td>Salt</td><td>{salt_dm} g/L</td></tr>
-
-        <!-- Unit Costs & Prices -->
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Electricity Price</td><td>{elec_price:.2f} {curr}/kWh</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Water Price</td><td>{water_price:.5f} {curr}/L ({water_price_m3:.2f} {curr}/m³)</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Dye Price</td><td>{dye_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Wetting Agent Price</td><td>{wetting_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Soda Ash Price</td><td>{soda_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>NAOH 50% Price</td><td>{caustic_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Sequestering Price</td><td>{seq_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Levelling Price</td><td>{lev_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Lubrication Price</td><td>{lub_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Anti Foaming Price</td><td>{anti_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Salt Price</td><td>{salt_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Fiber / Fabric Cost</td><td>{fiber_price:.2f} {curr}/kg</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Labor Price</td><td>{labor_price:.2f} {curr}/man-hour</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>Waste Handling Price</td><td>{waste_price:.5f} {curr}/L</td></tr>
-        <tr><td><strong>Costs & Unit Rates</strong></td><td>CO₂ Factor</td><td>{co2_factor:.3f} kg/kWh</td></tr>    
+        <!-- Unit Costs -->
+        <tr><td colspan="2" class="section-header">Costs & Unit Rates</td></tr>
+        <tr><td>Electricity Price</td><td>{elec_price:.2f} {curr}/kWh</td></tr>
+        <tr><td>Water Price</td><td>{water_price:.5f} {curr}/L ({water_price_m3:.2f} {curr}/m³)</td></tr>
+        <tr><td>Dye Price</td><td>{dye_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Wetting Agent Price</td><td>{wetting_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Soda Ash Price</td><td>{soda_price:.2f} {curr}/kg</td></tr>
+        <tr><td>NAOH 50% Price</td><td>{caustic_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Sequestering Price</td><td>{seq_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Levelling Price</td><td>{lev_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Lubrication Price</td><td>{lub_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Anti Foaming Price</td><td>{anti_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Salt Price</td><td>{salt_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Fiber / Fabric Cost</td><td>{fiber_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Labor Price</td><td>{labor_price:.2f} {curr}/man-hour</td></tr>
+        <tr><td>Waste Handling Price</td><td>{waste_price:.5f} {curr}/L</td></tr>
+        <tr><td>CO₂ Factor</td><td>{co2_factor:.3f} kg/kWh</td></tr>
     </table>
 
     <p style="margin-top: 30px; font-size: 0.9em; color: #64748b; text-align: center;">
