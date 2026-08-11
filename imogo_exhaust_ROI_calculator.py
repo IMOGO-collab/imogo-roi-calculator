@@ -46,6 +46,9 @@ def check_password():
     else:
         # Password correct
         return True
+# Kör lösenordskontrollen
+if not check_password():
+    st.stop()
 
 # ====================== DIN APP BÖRJAR HÄR ======================
 st.title("💰 Imogo Dye-Max vs Traditional Exhaust – ROI Calculator")
