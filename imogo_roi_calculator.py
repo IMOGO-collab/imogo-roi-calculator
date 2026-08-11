@@ -3,36 +3,42 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 
+# ====================== LÖSENORDSSKYDD ======================
+def check_password():
+    """Returns True if the user has entered the correct password."""
+    try:
+        CORRECT_PASSWORD = st.secrets["APP_PASSWORD"]
+    except (KeyError, FileNotFoundError):
+        return True 
+
+    def password_entered():
+        if st.session_state.get("password_input") == CORRECT_PASSWORD:
+            st.session_state["password_correct"] = True
+            if "password_input" in st.session_state:
+                del st.session_state["password_input"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("Enter password to gain access:", type="password", on_change=password_entered, key="password_input")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("Enter password to gain access:", type="password", on_change=password_entered, key="password_input")
+        st.error("🔒 Incorrect password. Please try again.")
+        return False
+    else:
+        return True
+
+if not check_password():
+    st.stop()
+
 # ====================== KONFIGURATION & FUNKTIONER ======================
 st.set_page_config(page_title="Imogo Dye-max ROI Calculator", layout="wide", page_icon="💰")
 
 def format_num(value):
     return "{:,.0f}".format(value).replace(",", " ")
 
-# Funktion som triggas NÄR växelkursen ändras
-def update_currency_rates():
-    new_rate = st.session_state.currency_rate
-    old_rate = st.session_state.prev_rate
-    
-    if old_rate > 0 and new_rate > 0:
-        ratio = new_rate / old_rate
-        st.session_state.ui_elec *= ratio
-        st.session_state.ui_water *= ratio
-        st.session_state.ui_dye *= ratio
-        st.session_state.ui_chem_a *= ratio
-        st.session_state.ui_chem_b *= ratio
-        st.session_state.ui_chem_c *= ratio
-        st.session_state.ui_waste *= ratio
-        st.session_state.ui_labor *= ratio
-        st.session_state.ui_inv *= ratio
-        st.session_state.ui_price_a *= ratio
-        st.session_state.ui_price_b *= ratio
-        st.session_state.ui_price_waste *= ratio
-        
-    st.session_state.prev_rate = new_rate
-
 st.title("💰 Imogo Dye-max vs Traditional Padder – ROI Calculator")
-
 
 # ====================== INITIALISERING ======================
 if 'initialized' not in st.session_state:
@@ -55,23 +61,11 @@ if 'initialized' not in st.session_state:
 
 # ====================== SIDEBAR ======================
 with st.sidebar:
-    # 👤 Kunduppgifter
-    customer_name = st.text_input("Kundens namn", value="", key="customer_name_input")
-
-    # 🌍 Currency settings
-    curr = st.text_input("Visningsvaluta (t.ex. EUR, SEK, USD)", value="EUR").strip().upper()
-    
-    # Hämta det inskrivna värdet från minnet (eller 1.00 första gången)
+    customer_name = st.text_input("Customer name", value="", key="customer_name_input")
+    curr = st.text_input("Currency (i.e. EUR, SEK, USD)", value="EUR").strip().upper()
     current_rate = st.session_state.get("conv_key", 1.00)
+    conv = st.number_input(f"Exchange rate (1 EUR = {current_rate:.2f} {curr})", value=1.00, step=0.10, format="%.2f", key="conv_key")
     
-    # Skapa fältet med den dynamiska rubriken
-    conv = st.number_input(
-        f"Växelkurs (1 EUR = {current_rate:.2f} {curr})", 
-        value=1.00, 
-        step=0.10, 
-        format="%.2f",
-        key="conv_key"
-    )    
     st.header(f"Costs ({curr})")
     st.number_input(f"Electricity ({curr}/kWh)", key="ui_elec", format="%.3f")
     st.number_input(f"Water ({curr}/L)", key="ui_water", format="%.4f")
@@ -87,6 +81,9 @@ with st.sidebar:
     st.number_input(f"Price A-quality fabric", key="ui_price_a")
     st.number_input(f"Price B-quality fabric", key="ui_price_b")
     st.number_input(f"Price Waste fabric", key="ui_price_waste")
+
+# (Resten av logiken och beräkningarna som du hade innan följer här nere...)
+# [Se till att klistra in dina beräkningsblock från den ursprungliga koden här under]
 
 # ====================== KONVERTERING ======================
 elec_price = st.session_state.ui_elec
@@ -392,72 +389,118 @@ table_html = ""
 for index, row in breakdown_df.iterrows():
     table_html += f"<tr><td>{row['Category']}</td><td>{curr} {format_num(row['Savings'])}</td></tr>"
 
-# Säkra hämtning av kundnamn (rensade mellanslag)
-clean_customer_name = customer_name.strip() if customer_name else ""
+clean_customer_name = customer_name.strip() if customer_name else "Imogo"
 
-# Skapa kundraden som en h3-rubrik (vänsterställd och med filens blåfärg)
-if clean_customer_name:
-    customer_line = f"<h3 style='color:#0056b3; margin-top: 5px; margin-bottom: 5px; font-size: 18px;'>Prepared for: {clean_customer_name}</h3>"
-else:
-    customer_line = ""
-
-html_report = f"""
-<!DOCTYPE html>
-<html lang="en">
+html_report = f"""<!DOCTYPE html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <style>
-        body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6; padding: 40px; margin: 0; }}
-        .header {{ text-align: left; border-bottom: 2px solid #0056b3; padding-bottom: 10px; margin-bottom: 20px; }}
-        h1 {{ color: #0056b3; margin: 0; font-size: 28px; }}
-        .timestamp {{ color: #777; font-size: 14px; margin-top: 5px; }}
-        .box {{ background: #f8f9fa; padding: 20px; border-left: 5px solid #00B0FF; margin-bottom: 30px; border-radius: 4px; }}
-        h2 {{ color: #222; font-size: 22px; margin-top: 30px; }}
-        table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 15px; }}
-        th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; }}
-        th {{ background-color: #f8f9fa; font-weight: bold; color: #333; }}
-        .footer {{ margin-top: 50px; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 15px; }}
-    </style>
+<meta charset="utf-8">
+<style>
+    body {{ font-family: Arial, sans-serif; margin: 30px; color: #333; }}
+    h1 {{ color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }}
+    h2 {{ color: #0f172a; margin-top: 25px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px; }}
+    .metric {{ background-color: #f8fafc; padding: 15px; border-radius: 8px; border-left: 5px solid #3b82f6; margin-bottom: 15px; }}
+    table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+    th, td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; font-size: 0.9em; }}
+    th {{ background-color: #f8fafc; color: #1e293b; }}
+    .section-header {{ background-color: #e2e8f0; font-weight: bold; text-align: center; font-size: 0.95em; }}
+</style>
 </head>
 <body>
-    <div class="header">
-        <h1>Imogo Dye-Max ROI & Environmental Report</h1>
-        {customer_line}
-        <div class="timestamp">Generated: {current_time}</div>
-    </div>
-    <div class="box">
+    <h1>Imogo Dye-max ROI & Environmental Report</h1>
+    <p style='text-align:center; font-size:1.2em; color:#1e3a8a; margin-top:-10px;'><strong>Prepared for:</strong> {clean_customer_name}</p>
+    <p style="text-align:center; color:#64748b;"><strong>Generated:</strong> {current_time}</p>
+        
+    <div class="metric">
         <h2>Key Results</h2>
-        <p style="font-size: 20px; font-weight: bold;">Annual Savings: {curr} {format_num(annual_savings)}</p>
-        <p><strong>Payback Period:</strong> {format_num(payback_months)} months</p>
-        <p><strong>Investment Cost:</strong> {curr} {format_num(investment_cost)}</p>
+        <p style="font-size:1.5em;"><strong>Annual Savings: {curr} {format_num(annual_savings)}</strong></p>
+        <p><strong>Payback Period: {format_num(payback_months)} months</strong></p>
+        <p><strong>Investment Cost: {curr} {format_num(investment_cost)}</strong></p>
     </div>
+
     <h2>Production Summary</h2>
     <p><strong>Traditional Padder:</strong> {format_num(base_annual_kg)} kg/year</p>
-    <p><strong>Imogo Dye-Max:</strong> {format_num(base_annual_kg)} kg/year</p>
+    <p><strong>Imogo Dye-max:</strong> {format_num(base_annual_kg)} kg/year</p>
+
     <h2>Physical Savings</h2>
-    <p><strong>Dye Stuff:</strong> {format_num(total_dye_savings_kg)} kg/year</p>
-    <p><strong>Chemistry:</strong> {format_num(total_chem_savings_kg)} kg/year</p>
-    <p><strong>Water:</strong> {format_num(water_savings_m3)} m&sup3;/year</p>
-    <p><strong>Energy:</strong> {format_num(energy_savings_kwh)} kWh/year</p>
-    <p><strong>CO2:</strong> {format_num(co2_savings_tonnes)} tonnes/year</p>
+    <p>Dye Stuff: <strong>{format_num(total_dye_savings_kg)} kg/year</strong></p>
+    <p>Chemistry: <strong>{format_num(total_chem_savings_kg)} kg/year</strong></p>
+    <p>Water: <strong>{format_num(water_savings_m3)} m³/year</strong></p>
+    <p>Energy: <strong>{format_num(energy_savings_kwh)} kWh/year</strong></p>
+    <p>CO₂: <strong>{co2_savings_tonnes:.1f} tonnes/year</strong></p>
+
     <h2>Monetary Savings Breakdown</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Category</th>
-                <th>Savings ({curr}/year)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {table_html}
-        </tbody>
+    <table border="1" class="dataframe table">
+      <thead>
+        <tr style="text-align: right;">
+          <th>Category</th>
+          <th>Savings ({curr}/year)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {table_html}
+      </tbody>
     </table>
-    <div class="footer">
+    
+    <h2>Process & Recipe Comparison</h2>
+    <table>
+        <tr>
+            <th style="width: 34%;">Parameter</th>
+            <th style="width: 33%;">Traditional Padder</th>
+            <th style="width: 33%;">Imogo Dye-Max</th>
+        </tr>
+        <tr><td colspan="3" class="section-header">Machine & Process Parameters</td></tr>
+        <tr><td>Working hours / shift</td><td>{working_hours} h</td><td>{working_hours} h</td></tr>
+        <tr><td>Production speed</td><td>{prod_speed} m/min</td><td>{prod_speed} m/min</td></tr>
+        <tr><td>Changeover Time</td><td>{p_ch} min</td><td>{i_ch} min</td></tr>
+        <tr><td>Dye dispersion</td><td>{p_disp} L/kg</td><td>{i_disp} L/kg</td></tr>
+        <tr><td>Waste water / changeover</td><td>{p_w} L</td><td>{i_w} L</td></tr>
+        <tr><td>Startup waste</td><td>{p_startup} m</td><td>{i_startup} m</td></tr>
+        
+        <tr><td colspan="3" class="section-header">Chemistry Recipe</td></tr>
+        <tr><td>Dye concentration</td><td>{p_dye}%</td><td>{i_dye}%</td></tr>
+        <tr><td>Chem A</td><td>{p_a} g/L</td><td>{i_a} g/L</td></tr>
+        <tr><td>Chem B</td><td>{p_b} g/L</td><td>{i_b} g/L</td></tr>
+        <tr><td>Chem C</td><td>{p_c} g/L</td><td>{i_c} g/L</td></tr>
+        <tr><td>B-quality fabric</td><td>{p_bq}%</td><td>{i_bq}%</td></tr>
+        <tr><td>Waste fabric</td><td>{p_wf}%</td><td>{i_wf}%</td></tr>
+    </table>
+
+    <h2>General Parameters & Unit Costs</h2>
+    <table>
+        <tr>
+            <th style="width: 50%;">Parameter</th>
+            <th style="width: 50%;">Value</th>
+        </tr>
+        <tr><td colspan="2" class="section-header">General Production</td></tr>
+        <tr><td>Working days / year</td><td>{days_year} days</td></tr>
+        <tr><td>Shifts per day</td><td>{shifts_day}</td></tr>
+        <tr><td>Rolls per shift</td><td>{rolls_shift}</td></tr>
+        <tr><td>Fabric width & GSM</td><td>{fabric_width} m / {fabric_gsm} kg/m²</td></tr>
+        
+        <tr><td colspan="2" class="section-header">Costs & Unit Rates</td></tr>
+        <tr><td>Electricity Price</td><td>{elec_price:.3f} {curr}/kWh</td></tr>
+        <tr><td>Water Price</td><td>{water_price:.5f} {curr}/L</td></tr>
+        <tr><td>Dye Stuff Price</td><td>{dye_stuff_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Chem A Price</td><td>{chem_a_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Chem B Price</td><td>{chem_b_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Chem C Price</td><td>{chem_c_price:.2f} {curr}/kg</td></tr>
+        <tr><td>Waste Handling Price</td><td>{waste_handling_price:.4f} {curr}/L</td></tr>
+        <tr><td>Labor Price</td><td>{labor_price:.2f} {curr}/man-hour</td></tr>
+        <tr><td>Investment Cost</td><td>{curr} {format_num(investment_cost)}</td></tr>
+        <tr><td>Price A-quality fabric</td><td>{price_a_fabric:.2f} {curr}/kg</td></tr>
+        <tr><td>Price B-quality fabric</td><td>{price_b_fabric:.2f} {curr}/kg</td></tr>
+        <tr><td>Price Waste fabric</td><td>{price_waste_fabric:.2f} {curr}/kg</td></tr>
+        <tr><td>CO₂ Factor</td><td>0.202 kg/kWh</td></tr>
+    </table>
+
+    <p style="margin-top: 30px; font-size: 0.9em; color: #64748b; text-align: center;">
         This report was automatically generated by the Imogo ROI Calculator.
-    </div>
+    </p>
 </body>
 </html>
 """
+
 if st.download_button(
     label="📥 Download Report as HTML (Print → Save as PDF)",
     data=html_report,
