@@ -91,11 +91,6 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = float(v)
 
-# ====================== SIDEBAR ======================
-st.sidebar.markdown(f"👤 **Logged in as:** {st.session_state['user_name']} (`{st.session_state['user_role'].upper()}`)")
-st.sidebar.divider()
-with st.sidebar:
-
     # 👤 Customer name
     customer_name = st.text_input("Customer name", value="", key="customer_name_input")
 
