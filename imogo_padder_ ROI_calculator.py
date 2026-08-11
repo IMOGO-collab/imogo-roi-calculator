@@ -353,7 +353,7 @@ st.plotly_chart(fig_savings, use_container_width=True)
 
 fig_cost = go.Figure()
 fig_cost.add_trace(go.Bar(
-    x=["Traditional Exhaust", "Imogo Dye-max"],
+    x=["Traditional Padder", "Imogo Dye-max"],
     y=[cost_per_kg_p, cost_per_kg_i],
     marker_color=['#FF4B4B', '#00CC96']
 ))
