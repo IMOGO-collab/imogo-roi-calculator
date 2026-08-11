@@ -10,12 +10,14 @@ st.set_page_config(page_title="Imogo Dye-max vs Exhaust ROI", layout="wide", pag
 def check_password():
     """Returns True if the user has entered the correct password."""
     
-    # Hämta från Streamlit Secrets (molnet), eller använd ett lokalt reservlösenord
+    # Försök hämta lösenord från Streamlit Secrets (används online)
     try:
         CORRECT_PASSWORD = st.secrets["APP_PASSWORD"]
     except (KeyError, FileNotFoundError):
-        CORRECT_PASSWORD = "Imogo2026"  # Local fallback password
+        # Om filen/nyckeln inte finns (t.ex. vid lokal körning), hoppa över lösenordet helt!
+        return True 
 
+    # Resten körs bara online där lösenord är konfigurerat:
     def password_entered():
         if st.session_state.get("password_input") == CORRECT_PASSWORD:
             st.session_state["password_correct"] = True
@@ -25,7 +27,6 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # First time visiting
         st.text_input(
             "Enter password to gain access:", 
             type="password", 
@@ -34,7 +35,6 @@ def check_password():
         )
         return False
     elif not st.session_state["password_correct"]:
-        # Wrong password entered
         st.text_input(
             "Enter password to gain access:", 
             type="password", 
@@ -44,9 +44,7 @@ def check_password():
         st.error("🔒 Incorrect password. Please try again.")
         return False
     else:
-        # Password correct
         return True
-
 # 🔑 ANROPA FUNKTIONEN BARA EN GÅNG HÄR
 if not check_password():
     st.stop()
@@ -194,15 +192,18 @@ with p2:
 
 # 3. Flexibilitet (Procentuell jämförelse av totalt antal batcher)
 with p3:
-    sign = "+" if pct_diff_batches >= 0 else ""
-    batch_comp_text = f"{total_batches_dm:,.0f} vs {total_batches_ex:,.0f} total batches/yr".replace(",", " ")
+    # Skicka med procentsatsen i delta så fixar Streamlit pilen automatiskt (röd nedåt vid minus, grön uppåt vid plus)
+    delta_text = f"{pct_diff_batches:.1f}%".replace(".", ",")
     
     st.metric(
         "**Batch Capacity / Flexibility**", 
-        f"{sign}{pct_diff_batches:.0f}%", 
-        batch_comp_text
+        f"{pct_diff_batches:.0f}%".replace(".", ",") + "%" if isinstance(pct_diff_batches, float) else f"{pct_diff_batches}%", 
+        delta=delta_text
     )
-    st.caption("Difference in total yearly batch capacity")
+    
+    # Flytta jämförelsen till caption för enhetlig design
+    batch_comp_text = f"{total_batches_dm:,.0f} vs {total_batches_ex:,.0f} total batches/yr".replace(",", " ")
+    st.caption(batch_comp_text)
 
 # ====================== ENERGY ======================
 st.subheader("⚡ Energy per kg fabric")
