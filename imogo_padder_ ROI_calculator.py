@@ -62,10 +62,27 @@ if 'initialized' not in st.session_state:
 # ====================== SIDEBAR ======================
 with st.sidebar:
     customer_name = st.text_input("Customer name", value="", key="customer_name_input")
-    curr = st.text_input("Currency (i.e. EUR, SEK, USD)", value="EUR").strip().upper()
+    curr = st.text_input("Currency (i.e. EUR, SEK, USD)", value="EUR", key="curr_input").strip().upper()
     current_rate = st.session_state.get("conv_key", 1.00)
     conv = st.number_input(f"Exchange rate (1 EUR = {current_rate:.2f} {curr})", value=1.00, step=0.10, format="%.2f", key="conv_key")
     
+    # Automatisk omräkning av kostnader i session_state om växelkursen ändras
+    if "prev_rate" not in st.session_state:
+        st.session_state.prev_rate = 1.0
+        
+    if conv != st.session_state.prev_rate:
+        factor = conv / st.session_state.prev_rate if st.session_state.prev_rate != 0 else 1.0
+        cost_keys = [
+            "ui_elec", "ui_water", "ui_dye", "ui_chem_a", "ui_chem_b", 
+            "ui_chem_c", "ui_waste", "ui_labor", "ui_inv", 
+            "ui_price_a", "ui_price_b", "ui_price_waste"
+        ]
+        for k in cost_keys:
+            if k in st.session_state:
+                st.session_state[k] *= factor
+        st.session_state.prev_rate = conv
+        st.rerun()
+
     st.header(f"Costs ({curr})")
     st.number_input(f"Electricity ({curr}/kWh)", key="ui_elec", format="%.3f")
     st.number_input(f"Water ({curr}/L)", key="ui_water", format="%.4f")
@@ -81,9 +98,6 @@ with st.sidebar:
     st.number_input(f"Price A-quality fabric", key="ui_price_a")
     st.number_input(f"Price B-quality fabric", key="ui_price_b")
     st.number_input(f"Price Waste fabric", key="ui_price_waste")
-
-# (Resten av logiken och beräkningarna som du hade innan följer här nere...)
-# [Se till att klistra in dina beräkningsblock från den ursprungliga koden här under]
 
 # ====================== KONVERTERING ======================
 elec_price = st.session_state.ui_elec
@@ -118,11 +132,9 @@ with col_s2:
 est_changeover_time = 20 
 eff_hours = working_hours - (changeovers * est_changeover_time / 60.0)
 
-# Beräkning
 meters_per_roll = (prod_speed * 60 * eff_hours) / rolls_shift if rolls_shift > 0 else 0
 weight_per_roll = meters_per_roll * fabric_width * fabric_gsm
 
-# Visning
 st.markdown(f"""
 <div style="background-color: #e8f4fd; padding: 10px; border-radius: 10px; font-size: 1.1em; color: #1e3a8a;">
     <strong>Fabric length per roll:</strong> {meters_per_roll:,.0f} m 
@@ -131,8 +143,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ─── PLATSHÅLLARE FÖR SAMMANFATTNINGEN ───
-# Denna gör att blocket hamnar här rent visuellt, trots att beräkningarna sker längre ner!
 prod_summary_placeholder = st.container()
 
 # ====================== MACHINE SPECIFIC ======================
@@ -168,25 +178,18 @@ with col_i:
     i_bq = st.number_input("B-quality fabric (%)", value=3.0, key="i_bq")
     i_wf = st.number_input("Waste fabric (%)", value=0.5, key="i_wf")
 
-# ====================== FULLSTÄNDIGA BERÄKNINGAR ======================
-# 1. Traditional Padder (Baslinje för dagens faktiska produktion)
+# ====================== BERÄKNINGAR ======================
 effective_hours_p = working_hours - (changeovers * p_ch / 60.0)
 p_daily_kg = prod_speed * 60 * effective_hours_p * shifts_day * fabric_width * fabric_gsm
 base_annual_kg = p_daily_kg * days_year
 
-# 2. Imogo Dye-Max (Maximal potential tack vare kortare changeover)
 effective_hours_i = working_hours - (changeovers * i_ch / 60.0)
 i_daily_kg = prod_speed * 60 * effective_hours_i * shifts_day * fabric_width * fabric_gsm
 i_annual_kg_potential = i_daily_kg * days_year
 
-# Den extra kapaciteten som kan köras tack vare sparad ställtid
 extra_annual_kg = i_annual_kg_potential - base_annual_kg
-
-# Variabler som behövs för resten av kostnadsberäkningarna i appen
 annual_changeovers = shifts_day * changeovers * days_year
 
-
-# ─── RITA UT PRODUCTION VOLUME SUMMARY I PLATSHÅLLAREN ───
 with prod_summary_placeholder:
     st.markdown("---")
     st.subheader("📊 Production Volume Summary")
@@ -204,7 +207,7 @@ with prod_summary_placeholder:
         )
         st.caption(f"**{format_num(i_daily_kg)} kg/day** | **{prod_speed:.1f} m/min**")
     st.markdown("---")
-# Volymer & Koncentrationer (fortsatta beräkningar)
+
 p_disp_L = base_annual_kg * p_disp
 i_disp_L = base_annual_kg * i_disp
 p_dye_g_per_l = (p_dye / 100 * 1000) / p_disp if p_disp > 0 else 0
@@ -225,11 +228,9 @@ i_waste_L = annual_changeovers * i_w
 p_changeover_dye_kg = p_waste_L * (p_dye_g_per_l / 1000)
 i_changeover_dye_kg = i_waste_L * (i_dye_g_per_l / 1000)
 
-# Färgämnesbesparing
 total_dye_savings_kg = (p_dye_kg + p_startup_dye_kg + p_changeover_dye_kg) - (i_dye_kg + i_startup_dye_kg + i_changeover_dye_kg)
 total_dye_savings = total_dye_savings_kg * dye_stuff_price
 
-# Kemi A, B, C
 p_chem_a_kg = p_disp_L * (p_a / 1000) + (p_startup_waste_kg * p_disp * (p_a / 1000)) + (p_waste_L * (p_a / 1000))
 i_chem_a_kg = i_disp_L * (i_a / 1000) + (i_startup_waste_kg * i_disp * (i_a / 1000)) + (i_waste_L * (i_a / 1000))
 total_chem_a_savings_kg = p_chem_a_kg - i_chem_a_kg
@@ -245,7 +246,6 @@ total_chem_c_savings_kg = p_chem_c_kg - i_chem_c_kg
 total_chem_savings_kg = total_chem_a_savings_kg + total_chem_b_savings_kg + total_chem_c_savings_kg
 total_chem_savings = (total_chem_a_savings_kg * chem_a_price) + (total_chem_b_savings_kg * chem_b_price) + (total_chem_c_savings_kg * chem_c_price)
 
-# Vatten, Energi, Spildevatten & Arbetskraft
 p_total_water = (base_annual_kg * p_disp) + (p_startup_waste_kg * p_disp) + p_waste_L
 i_total_water = (base_annual_kg * i_disp) + (i_startup_waste_kg * i_disp) + i_waste_L
 water_savings = (p_total_water - i_total_water) * water_price
@@ -256,12 +256,10 @@ energy_savings = (p_total_energy - i_total_energy) * elec_price
 
 waste_savings = (p_waste_L - i_waste_L) * waste_handling_price
 
-# Beräkna arbetskostnader för totalt (p_labor_cost och i_labor_cost)
 p_labor_cost = (annual_changeovers * p_ch / 60) * labor_price
 i_labor_cost = (annual_changeovers * i_ch / 60) * labor_price
 labor_savings = p_labor_cost - i_labor_cost
 
-# Tygkvalitet och Spill
 p_b_quality_kg = base_annual_kg * (p_bq / 100)
 i_b_quality_kg = base_annual_kg * (i_bq / 100)
 p_waste_fabric_kg = base_annual_kg * (p_wf / 100)
@@ -270,16 +268,13 @@ i_waste_fabric_kg = base_annual_kg * (i_wf / 100)
 b_quality_savings = (p_b_quality_kg - i_b_quality_kg) * (price_a_fabric - price_b_fabric)
 waste_fabric_savings = (p_waste_fabric_kg - i_waste_fabric_kg) * (price_a_fabric - price_waste_fabric)
 
-# Totalt
 annual_savings = total_dye_savings + total_chem_savings + water_savings + energy_savings + waste_savings + labor_savings + b_quality_savings + waste_fabric_savings
 payback_months = (investment_cost / annual_savings * 12) if annual_savings > 0 else 0
 
-# Fysiska besparingar för rapport
 water_savings_m3 = (p_total_water - i_total_water) / 1000
 energy_savings_kwh = p_total_energy - i_total_energy
-co2_savings_tonnes = energy_savings_kwh * 0.202 / 1000  # 0.202 kg CO2 per kWh som standard
+co2_savings_tonnes = energy_savings_kwh * 0.202 / 1000
 
-# ====================== BERÄKNA TOTALA KOSTNADER ======================
 p_total = (p_dye_kg + p_startup_dye_kg + p_changeover_dye_kg) * dye_stuff_price + \
           (p_chem_a_kg * chem_a_price) + (p_chem_b_kg * chem_b_price) + (p_chem_c_kg * chem_c_price) + \
           (p_total_water * water_price) + (p_total_energy * elec_price) + \
@@ -292,22 +287,19 @@ i_total = (i_dye_kg + i_startup_dye_kg + i_changeover_dye_kg) * dye_stuff_price 
           (i_waste_L * waste_handling_price) + i_labor_cost + \
           (i_b_quality_kg * price_b_fabric) + (i_waste_fabric_kg * price_waste_fabric)
 
-# ====================== BERÄKNING & VISNING AV RULLVIKT INCL. VÄTSKA ======================
 p_roll_weight_wet = weight_per_roll * (1 + p_disp)
 i_roll_weight_wet = weight_per_roll * (1 + i_disp)
 
-# Bestäm färg (grön som standard, röd om någon maskin överstiger 1500 kg)
 if p_roll_weight_wet > 1500 or i_roll_weight_wet > 1500:
-    bg_color = "#f8d7da"    # Ljusröd
-    text_color = "#721c24"  # Mörkröd
+    bg_color = "#f8d7da"
+    text_color = "#721c24"
 else:
-    bg_color = "#e6f4ea"    # Ljusgrön 
-    text_color = "#137333"  # Mörkgrön
+    bg_color = "#e6f4ea"
+    text_color = "#137333"
 
-# Rita ut fältet över hela skärmbredden
 st.markdown(f"""
 <div style="background-color: {bg_color}; color: {text_color}; padding: 15px; border-radius: 8px; font-size: 1.1em; margin-bottom: 20px;">
-    <strong>Roll wet weight total:</strong> {i_roll_weight_wet:.1f} kg <span style="color: {text_color}; opacity: 0.5; margin: 0 10px;
+    <strong>Roll wet weight total:</strong> {i_roll_weight_wet:.1f} kg
 </div>
 """, unsafe_allow_html=True)
 
@@ -345,11 +337,6 @@ col_cost2.metric("Imogo Dye-Max", f"{curr} {cost_per_kg_i:.2f} / kg", f" ↓ {cu
 st.markdown("---")
 st.markdown("### 📊 Visual Savings Overview")
 
-# 1. Beräkna totala kostnader (nödvändigt för stapeldiagrammen)
-p_total = (p_dye_kg * dye_stuff_price) + (p_chem_a_kg * chem_a_price) + (p_chem_b_kg * chem_b_price) + (p_chem_c_kg * chem_c_price) + (p_total_water * water_price) + (p_total_energy * elec_price) + (p_waste_L * waste_handling_price) + labor_savings + (p_b_quality_kg * price_b_fabric) + (p_waste_fabric_kg * price_waste_fabric)
-i_total = (i_dye_kg * dye_stuff_price) + (i_chem_a_kg * chem_a_price) + (i_chem_b_kg * chem_b_price) + (i_chem_c_kg * chem_c_price) + (i_total_water * water_price) + (i_total_energy * elec_price) + (i_waste_L * waste_handling_price) + 0 + (i_b_quality_kg * price_b_fabric) + (i_waste_fabric_kg * price_waste_fabric)
-
-# 2. Stapeldiagram: Årliga besparingar per kategori
 fig_savings = go.Figure(go.Bar(
     x=breakdown_df["Savings"], 
     y=breakdown_df["Category"], 
@@ -358,13 +345,12 @@ fig_savings = go.Figure(go.Bar(
 ))
 fig_savings.update_layout(
     title=f"Yearly savings per category ({curr}/year)",
-    xaxis_title="EUR Savings",
+    xaxis_title=f"{curr} Savings",
     yaxis=dict(autorange="reversed"),
     height=400
 )
 st.plotly_chart(fig_savings, use_container_width=True)
 
-# 3. Stapeldiagram: Total Cost per kg Fabric
 fig_cost = go.Figure()
 fig_cost.add_trace(go.Bar(
     x=["Traditional Exhaust", "Imogo Dye-max"],
@@ -372,12 +358,13 @@ fig_cost.add_trace(go.Bar(
     marker_color=['#FF4B4B', '#00CC96']
 ))
 fig_cost.update_layout(
-    title="Total Cost per kg Fabric (EUR)",
-    yaxis_title="EUR / kg",
+    title=f"Total Cost per kg Fabric ({curr})",
+    yaxis_title=f"{curr} / kg",
     height=400
 )
 st.plotly_chart(fig_cost, use_container_width=True)
-
+clean_customer_name = customer_name.strip() if customer_name else ""
+customer_paragraph = f"<p style='text-align:center; font-size:1.2em; color:#1e3a8a; margin-top:-10px;'><strong>Prepared for:</strong> {clean_customer_name}</p>" if clean_customer_name else ""
 
 # ====================== HTML PDF-EXPORT ======================
 st.markdown("---")
@@ -408,9 +395,9 @@ html_report = f"""<!DOCTYPE html>
 </head>
 <body>
     <h1>Imogo Dye-max ROI & Environmental Report</h1>
-    <p style='text-align:center; font-size:1.2em; color:#1e3a8a; margin-top:-10px;'><strong>Prepared for:</strong> {clean_customer_name}</p>
+    {customer_paragraph}
     <p style="text-align:center; color:#64748b;"><strong>Generated:</strong> {current_time}</p>
-        
+           
     <div class="metric">
         <h2>Key Results</h2>
         <p style="font-size:1.5em;"><strong>Annual Savings: {curr} {format_num(annual_savings)}</strong></p>
