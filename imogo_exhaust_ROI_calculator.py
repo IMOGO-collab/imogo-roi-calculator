@@ -228,7 +228,7 @@ with r1:
     st.markdown("**Exhaust**")
     dye_a_ex_owf = st.number_input("Dye A (%) OWF", value=7.125, step=0.01, key="da_ex") / 100
     wetting_ex = st.number_input("Wetting (g/L)", value=2.0, key="wet_ex")
-    soda_ex = st.number_input("Soda (g/L)", value=20.0, key="soda_ex")
+    soda_ex = st.number_input("Soda (g/L)", value=5.0, key="soda_ex")
     caustic_ex = st.number_input("NAOH (g/L)", value=1.5, key="cau_ex")
     seq_ex = st.number_input("Sequestering (g/L)", value=1.0, key="seq_ex")
     lev_ex = st.number_input("Levelling (g/L)", value=2.0, key="lev_ex")
@@ -244,7 +244,7 @@ with r2:
     st.info(f"Dye A OWF: **{dye_a_dm_owf*100:.3f}%** | Concentration: **{dye_a_dm_gl:.1f} g/L**")
     
     wetting_dm = st.number_input("Wetting (g/L)", value=1.0, key="wet_dm")
-    soda_dm = st.number_input("Soda (g/L)", value=20.0, key="soda_dm")
+    soda_dm = st.number_input("Soda (g/L)", value=16.0, key="soda_dm")
     caustic_dm = st.number_input("NAOH (g/L)", value=5.0, key="cau_dm")
     seq_dm = st.number_input("Sequestering (g/L)", value=0.0, key="seq_dm")
     lev_dm = st.number_input("Levelling (g/L)", value=1.0, key="lev_dm")
