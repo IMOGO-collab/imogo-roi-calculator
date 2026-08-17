@@ -2,6 +2,37 @@ import streamlit as st
 import pandas as pd
 import datetime
 import plotly.express as px
+from datetime import datetime
+
+# ====================== LÖSENORDSSKYDD ======================
+def check_password():
+    """Returns True if the user has entered the correct password."""
+    try:
+        CORRECT_PASSWORD = st.secrets["APP_PASSWORD"]
+    except (KeyError, FileNotFoundError):
+        return True 
+
+    def password_entered():
+        if st.session_state.get("password_input") == CORRECT_PASSWORD:
+            st.session_state["password_correct"] = True
+            if "password_input" in st.session_state:
+                del st.session_state["password_input"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("Enter password to gain access:", type="password", on_change=password_entered, key="password_input")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("Enter password to gain access:", type="password", on_change=password_entered, key="password_input")
+        st.error("🔒 Incorrect password. Please try again.")
+        return False
+    else:
+        return True
+
+if not check_password():
+    st.stop()
+
 
 # ------------------------------------------------------------------------------
 # PAGE CONFIGURATION
