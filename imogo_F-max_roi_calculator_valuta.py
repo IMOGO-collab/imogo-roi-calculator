@@ -732,7 +732,7 @@ html_content = f"""
         <tr><td>Chemical B</td><td>{currency} {fmt_num(res['savings_chem_b'])}</td></tr>
         <tr><td>Chemical C</td><td>{currency} {fmt_num(res['savings_chem_c'])}</td></tr>
         <tr><td>Process Water</td><td>{currency} {fmt_num(res['savings_water'])}</td></tr>
-        <tr><td>Waste Handling</td><td>{currency} {fmt_num(res['savings_waste_handling'])}</td></tr>
+        <tr><td>Waste Water Treatment</td><td>{currency} {fmt_num(res['savings_waste_handling'])}</td></tr>
         <tr><td>Fabric Waste</td><td>{currency} {fmt_num(res['savings_fabric_waste'])}</td></tr>  <!-- <-- LÄGG TILL DENNA RAD -->
         <tr><td>Energy</td><td>{currency} {fmt_num(res['savings_energy'])}</td></tr>
         <tr style="font-weight: bold; background-color: #f1f3f5;"><td>Total Annual Savings</td><td>{currency} {fmt_num(res['total_annual_savings'])}</td></tr>
