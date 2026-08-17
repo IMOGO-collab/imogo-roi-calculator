@@ -38,7 +38,7 @@ if not check_password():
 # ------------------------------------------------------------------------------
 st.set_page_config(
     page_title="F-Max ROI & Sustainability Calculator",
-    page_icon="📊",
+    page_icon="💰",
     layout="wide"
 )
 
