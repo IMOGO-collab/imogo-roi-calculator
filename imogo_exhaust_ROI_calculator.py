@@ -58,7 +58,7 @@ if 'prev_conv' not in st.session_state:
     st.session_state.prev_conv = 1.0
 
 defaults = {
-    "elec": 0.15, "water": 0.0001, "dye_p": 0.6,
+    "elec": 0.15, "water": 0.0001, "dye_p": 6.0,
     "wet_p": 0.8, "soda_p": 0.35, "cau_p": 0.25, "seq_p": 1.2,
     "lev_p": 1.0, "lub_p": 1.0, "anti_p": 1.2, "salt_p": 0.1,
     "fiber_p": 2.0, "labor": 1.0, "waste_p": 0.002, "inv": 635000.0
