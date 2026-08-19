@@ -96,9 +96,9 @@ with st.sidebar:
     st.markdown("---")
     st.header(f"💲 Costs ({curr})")
     
-    elec_price = st.number_input(f"Electricity ({curr}/kWh)", step=0.01, format="%.2f", key="elec")
+    elec_price = st.number_input(f"Electricity ({curr}/kWh)", step=0.015, format="%.2f", key="elec")
     water_price = st.number_input(f"Water ({curr}/L)", step=0.0001, format="%.5f", key="water")
-    dye_price = st.number_input(f"Dye stuff ({curr}/kg)", step=0.5, format="%.2f", key="dye_p")
+    dye_price = st.number_input(f"Dye stuff ({curr}/kg)", step=0.6, format="%.2f", key="dye_p")
     
     st.subheader(f"Chemistry Prices ({curr}/kg)")
     wetting_price = st.number_input("Wetting agent", step=0.1, format="%.2f", key="wet_p")
@@ -124,8 +124,8 @@ col_ex, col_dm, col_shared = st.columns([2, 2, 2])
 
 with col_ex:
     st.subheader("🔴 Traditional Exhaust")
-    batch_ex = st.number_input("Machine capacity (kg)", value=250, key="batch_ex")
-    ports_ex = st.number_input("Number of machines", value=4, key="ports_ex")
+    batch_ex = st.number_input("Machine capacity (kg)", value=500, key="batch_ex")
+    ports_ex = st.number_input("Number of machines", value=2, key="ports_ex")
     liq_ex = st.number_input("Liquid ratio (L/kg)", value=5.0, key="liq_ex")
     
     waste_ex = batch_ex * liq_ex
@@ -136,7 +136,7 @@ with col_ex:
     batches_per_day_ex = ports_ex * 6
     st.info(f"**Batches per day:** {batches_per_day_ex} (6 per machine)")
 
-    fiber_loss_ex = st.number_input("Fiber loss (%)", value=2.0, step=0.1, key="fl_ex") / 100
+    fiber_loss_ex = st.number_input("Fiber loss (%)", value=2.5, step=0.1, key="fl_ex") / 100
 
 with col_dm:
     st.subheader("🔵 Imogo Dye-max")
