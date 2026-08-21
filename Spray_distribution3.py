@@ -4,10 +4,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Sidans layout
-st.set_page_config(page_title="Munstycksanalys - Banbreddsanalys", layout="wide")
+st.set_page_config(page_title="Munstycksanalys - Profilering", layout="wide")
 
-st.title("🎛️ Dynamisk Munstycksanalys med Fast Banbredd")
-st.write("Jämför den dynamiskt beräknade täckningen mot en **fast tygbredd**. Se direkt i grafen och mätvärdena hur mycket av tyget som påverkas när flödena justeras.")
+st.title("🎛️ Dynamisk Munstycksanalys (Profilering)")
+st.write("Använd reglagen för att medvetet justera flödet och kompensera för tygvariationer. Grafen och mätvärdena visar exakt **vilken del av tyget som påverkas** av dina justeringar.")
 
 # --- SIDEBAR: REGLAGE FÖR GEOMETRI & FLÖDEN ---
 st.sidebar.header("Tygkonfiguration")
@@ -16,12 +16,30 @@ fixed_fabric_width = st.sidebar.number_input(
     value=2400.0, step=50.0
 )
 
+st.sidebar.header("Munstycksprofil (Enskilt munstycke)")
+half_flat = st.sidebar.number_input(
+    "Platåhalva (100% flöde) [mm]", 
+    value=120.0, step=5.0, min_value=0.0
+)
+flank_width = st.sidebar.number_input(
+    "Flankbredd (avtrappning) [mm]", 
+    value=120.0, step=5.0, min_value=1.0
+)
+half_total = half_flat + flank_width
+ideal_cc = half_flat + half_total
+
+st.sidebar.caption(f"💡 **Teoretiskt perfekt C-C för profilen:** {ideal_cc:.0f} mm")
+
 st.sidebar.header("Geometri & Marginaler")
-# Uppdaterad default till C-C 360 mm
 cc_distance = st.sidebar.slider(
     "C-C Avstånd mellan munstycken [mm]", 
     min_value=250.0, max_value=500.0, value=360.0, step=1.0
 )
+
+if abs(cc_distance - ideal_cc) < 0.5:
+    st.sidebar.success(f"Ditt C-C ({cc_distance:.0f} mm) matchar munstycksprofilen perfekt!")
+else:
+    st.sidebar.info(f"Vid C-C {cc_distance:.0f} mm får du en svag överlappseffekt baserad på profilen (verklighetstroget).")
 
 oscillation_margin = st.sidebar.number_input(
     "Oscilleringsmarginal per sida [mm]", 
@@ -32,7 +50,6 @@ offset = cc_distance / 2.0
 
 st.sidebar.header("Flöden per munstycke (%)")
 
-# Nummerordning: Udda i Ramp 1, Jämna i Ramp 2
 ramp1_ids = [1, 3, 5, 7, 9, 11, 13, 15]
 ramp2_ids = [2, 4, 6, 8, 10, 12, 14, 16]
 
@@ -56,24 +73,39 @@ with st.sidebar.expander("Ramp 2 - Förskjuten (Munstycke 2, 4, 6, 8, 10, 12, 14
         ) / 100.0
         ramp2_flows.append(flow_val)
 
-# --- SUPERMJUK PROFIL FÖR ETT MUNSTYCKE (Bredare platå för maxbredd ~2610 mm) ---
-def super_smooth_profile(x, x_pos=0.0):
+# --- SUPERMJUK PROFIL FÖR ETT MUNSTYCKE ---
+def super_smooth_profile(x, x_pos=0.0, h_flat=120.0, h_total=250.0):
     dist = np.abs(x - x_pos)
-    # Summan blir fortfarande exakt 360 mm (170 + 190 = 360) för perfekt överlapp,
-    # men den bredare platån ökar totalkäckningen till drygt 2600 mm.
-    half_flat = 170.0   # Platt kärna i mitten (mm)
-    half_total = 190.0  # Total halvbredd per munstycke (mm)
-    
     profile = np.zeros_like(x, dtype=float)
-    profile[dist <= half_flat] = 1.0
+    profile[dist <= h_flat] = 1.0
     
-    taper_mask = (dist > half_flat) & (dist <= half_total)
-    t = (dist[taper_mask] - half_flat) / (half_total - half_flat)
-    
-    smooth_step = 6 * t**5 - 15 * t**4 + 10 * t**3
-    profile[taper_mask] = 1.0 - smooth_step
+    taper_mask = (dist > h_flat) & (dist <= h_total)
+    if h_total > h_flat:
+        t = (dist[taper_mask] - h_flat) / (h_total - h_flat)
+        smooth_step = 6 * t**5 - 15 * t**4 + 10 * t**3
+        profile[taper_mask] = 1.0 - smooth_step
     
     return profile
+
+# --- EGET DIAGRAM FÖR ENSKILT MUNSTYCKE ---
+with st.expander("🔍 Visualisera enskilt munstycke (Profil & Sprutbild)", expanded=True):
+    fig_single, ax_s = plt.subplots(figsize=(12, 3.5))
+    x_single = np.linspace(-half_total - 100, half_total + 100, 600)
+    y_single = super_smooth_profile(x_single, 0.0, half_flat, half_total)
+    
+    ax_s.plot(x_single, y_single, color='teal', linewidth=2.5, label='Munstycksprofil')
+    ax_s.axvspan(-half_flat, half_flat, color='green', alpha=0.15, label=f'Platå ({2*half_flat:.0f} mm)')
+    ax_s.axvspan(-half_total, -half_flat, color='orange', alpha=0.15, label=f'Vänster flank ({flank_width:.0f} mm)')
+    ax_s.axvspan(half_flat, half_total, color='orange', alpha=0.15, label=f'Höger flank ({flank_width:.0f} mm)')
+    
+    ax_s.set_title(f"Sprutprofil per munstycke | Totalsprutbredd: {2*half_total:.0f} mm | Platå: {2*half_flat:.0f} mm | Flank: {flank_width:.0f} mm", fontsize=10)
+    ax_s.set_xlabel("Avstånd från munstyckets centrum [mm]", fontsize=9)
+    ax_s.set_ylabel("Relativt flöde", fontsize=9)
+    ax_s.set_ylim(0, 1.2)
+    ax_s.grid(True, linestyle=':', alpha=0.6)
+    ax_s.legend(loc='upper right', fontsize=8)
+    plt.tight_layout()
+    st.pyplot(fig_single)
 
 # Positioner för alla 16 munstycken
 pos_ramp1 = [i * cc_distance for i in range(8)]
@@ -91,17 +123,20 @@ nozzle_info_sorted = sorted(nozzle_info, key=lambda k: k['pos'])
 total_width_max = max(pos_ramp2)
 x_smooth = np.linspace(-300.0, total_width_max + 300.0, 1500)
 
-smooth_individual = {}
 y_combined = np.zeros_like(x_smooth)
+y_baseline = np.zeros_like(x_smooth)
+smooth_individual = {}
 
 for n in nozzle_info:
-    curve = n['flow'] * super_smooth_profile(x_smooth, x_pos=n['pos'])
+    curve = n['flow'] * super_smooth_profile(x_smooth, x_pos=n['pos'], h_flat=half_flat, h_total=half_total)
     smooth_individual[n['id']] = curve
     y_combined += curve
+    
+    curve_base = 1.0 * super_smooth_profile(x_smooth, x_pos=n['pos'], h_flat=half_flat, h_total=half_total)
+    y_baseline += curve_base
 
 # --- BERÄKNING AV DYNAMISK MAX BREDD ---
-max_flow_val = 2.0  # Nominellt target-flöde
-full_cov_mask = y_combined >= (max_flow_val - 0.02)
+full_cov_mask = y_baseline >= 1.98
 x_full_cov = x_smooth[full_cov_mask]
 
 if len(x_full_cov) > 0:
@@ -111,63 +146,106 @@ if len(x_full_cov) > 0:
 else:
     dyn_start, dyn_end, max_dyn_width = 0.0, 0.0, 0.0
 
-# --- BERÄKNING FÖR FAST BANBREDD ---
+# --- BERÄKNING AV JUSTERAT OMRÅDE OCH PROCENTUELL MINSKNING ---
 ramp_center = (min(pos_ramp1) + max(pos_ramp2)) / 2.0
 fixed_start = ramp_center - (fixed_fabric_width / 2.0)
 fixed_end = ramp_center + (fixed_fabric_width / 2.0)
 
-# Utvärdera flödet på det fasta tyget
 fabric_mask = (x_smooth >= fixed_start) & (x_smooth <= fixed_end)
 x_fabric = x_smooth[fabric_mask]
 y_fabric = y_combined[fabric_mask]
+y_fabric_baseline = y_baseline[fabric_mask]
 
-# Hitta områden på tyget där flödet viker av från nominellt (2.0) med mer än 2%
-defect_mask = np.abs(y_fabric - max_flow_val) > 0.04
+# Mask för justerade punkter på tyget
+adjusted_mask = np.abs(y_fabric - y_fabric_baseline) > 0.005 
 dx = x_smooth[1] - x_smooth[0]
-affected_width_mm = np.sum(defect_mask) * dx
-ok_fabric_percentage = max(0.0, 100.0 * (1.0 - (affected_width_mm / fixed_fabric_width))) if fixed_fabric_width > 0 else 0.0
+
+# Uppdelning Vänster vs Höger sida om mitten
+left_side_mask = adjusted_mask & (x_fabric <= ramp_center)
+right_side_mask = adjusted_mask & (x_fabric > ramp_center)
+
+# Bredd per zon (mm) med exakt avrundningslogik
+adj_width_left = round(np.sum(left_side_mask) * dx)
+adj_width_right = round(np.sum(right_side_mask) * dx)
+adj_width_total = adj_width_left + adj_width_right
+
+# Beräkning av snittförändring (%)
+def calc_pct_change(y_act, y_base, mask):
+    if np.sum(mask) == 0 or np.sum(y_base[mask]) == 0:
+        return 0.0
+    sum_base = np.sum(y_base[mask])
+    sum_act = np.sum(y_act[mask])
+    return ((sum_act - sum_base) / sum_base) * 100.0
+
+pct_total = calc_pct_change(y_fabric, y_fabric_baseline, adjusted_mask)
+pct_left = calc_pct_change(y_fabric, y_fabric_baseline, left_side_mask)
+pct_right = calc_pct_change(y_fabric, y_fabric_baseline, right_side_mask)
 
 # --- PRESENTATION AV METRIKER ---
-st.subheader("📏 Banbreddsanalys")
+st.subheader("📏 Banbreddsanalys (Profilering)")
 c1, c2, c3, c4 = st.columns(4)
+
 c1.metric("Fast tygbredd", f"{fixed_fabric_width:.0f} mm")
-c2.metric("Godkänd tygyta", f"{ok_fabric_percentage:.1f} %")
-c3.metric(
-    "Påverkad/Defekt bredd", 
-    f"{affected_width_mm:.0f} mm", 
-    delta=f"-{affected_width_mm:.0f} mm" if affected_width_mm > 0 else "Perfekt täckning", 
-    delta_color="inverse"
-)
-c4.metric("Teoretisk maxbredd", f"{max_dyn_width:.0f} mm")
+
+if adj_width_total > 0:
+    c2.metric(
+        "Totalt justerad bredd", 
+        f"{adj_width_total:.0f} mm", 
+        delta=f"{pct_total:+.1f}% snittflöde", 
+        delta_color="off"
+    )
+else:
+    c2.metric("Totalt justerad bredd", "0 mm", delta="Standardflöde", delta_color="off")
+
+if adj_width_left > 0:
+    c3.metric(
+        "Vänster sida", 
+        f"{adj_width_left:.0f} mm", 
+        delta=f"{pct_left:+.1f}% snittflöde", 
+        delta_color="off"
+    )
+else:
+    c3.metric("Vänster sida", "0 mm", delta="Ej justerad", delta_color="off")
+
+if adj_width_right > 0:
+    c4.metric(
+        "Höger sida", 
+        f"{adj_width_right:.0f} mm", 
+        delta=f"{pct_right:+.1f}% snittflöde", 
+        delta_color="off"
+    )
+else:
+    c4.metric("Höger sida", "0 mm", delta="Ej justerad", delta_color="off")
 
 # --- GRAFISK PRESENTATION ---
-st.subheader("📊 Visualisering av flödespåverkan på tyget")
+st.subheader("📊 Visualisering av flödesprofilering")
 
 fig, ax = plt.subplots(figsize=(14, 6))
 
-# 1. Fast tygbredd (Röd/Grå inramning)
 ax.axvspan(fixed_start, fixed_end, color='gray', alpha=0.1, label=f'Fast tygbredd ({fixed_fabric_width:.0f} mm)')
 ax.axvline(fixed_start, color='darkred', linestyle='-', linewidth=2, label=f'Tygkant ({fixed_start:.0f} mm)')
 ax.axvline(fixed_end, color='darkred', linestyle='-', linewidth=2, label=f'Tygkant ({fixed_end:.0f} mm)')
 
-# 2. Röd skuggning där tyget har flödesavvikelse
-if len(x_fabric) > 0 and np.any(defect_mask):
+# Centrumlinje utritad med streck-punkt-linje (Black dash-dot)
+ax.axvline(ramp_center, color='black', linestyle='-.', linewidth=1.5, label=f'Centrumlinje ({ramp_center:.0f} mm)')
+
+ax.plot(x_smooth, y_baseline, color='gray', linestyle='--', linewidth=1.5, alpha=0.7, label='Standardflöde (100% på alla ventiler)')
+
+if len(x_fabric) > 0 and np.any(adjusted_mask):
     ax.fill_between(
-        x_fabric, 0, y_fabric, 
-        where=defect_mask, color='red', alpha=0.3, 
-        label=f'Avvikande flöde på tyg ({affected_width_mm:.0f} mm)'
+        x_fabric, y_fabric_baseline, y_fabric, 
+        where=adjusted_mask, color='orange', alpha=0.4, 
+        label=f'Justerat område ({adj_width_total:.0f} mm)'
     )
 
-# 3. Enskilda munstycken
 for n in nozzle_info:
     color = 'tab:blue' if n['ramp'] == 1 else 'tab:orange'
     style = '--' if n['ramp'] == 1 else ':'
     ax.plot(x_smooth, smooth_individual[n['id']], linestyle=style, color=color, alpha=0.25)
 
-# 4. Totalkurva
-ax.plot(x_smooth, y_combined, color='darkblue', linewidth=3.0, label='Kombinerat totalflöde')
+ax.plot(x_smooth, y_combined, color='darkblue', linewidth=3.0, label='Aktuell flödesprofil')
 
-ax.set_title(f'Flöde över fast tygbredd ({fixed_fabric_width:.0f} mm) | C-C = {cc_distance} mm | Påverkad bredd: {affected_width_mm:.0f} mm', fontsize=11)
+ax.set_title(f'Flödesprofil över tygbredd ({fixed_fabric_width:.0f} mm) | C-C = {cc_distance} mm', fontsize=11)
 ax.set_xlabel('Position längs rampen [mm]', fontsize=10)
 ax.set_ylabel('Relativt flöde', fontsize=10)
 ax.grid(True, linestyle=':', alpha=0.7)
@@ -186,7 +264,7 @@ table_data = {'Position (mm)': np.round(x_table, 1)}
 combined_table_flow = np.zeros_like(x_table)
 
 for n in nozzle_info_sorted:
-    t_curve = n['flow'] * super_smooth_profile(x_table, n['pos'])
+    t_curve = n['flow'] * super_smooth_profile(x_table, n['pos'], h_flat=half_flat, h_total=half_total)
     table_data[f"{n['id']} ({n['pos']:.0f}mm)"] = np.round(t_curve, 2)
     combined_table_flow += t_curve
 
