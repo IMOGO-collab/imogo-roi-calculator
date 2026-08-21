@@ -56,12 +56,13 @@ with st.sidebar.expander("Ramp 2 - Förskjuten (Munstycke 2, 4, 6, 8, 10, 12, 14
         ) / 100.0
         ramp2_flows.append(flow_val)
 
-# --- SUPERMJUK PROFIL FÖR ETT MUNSTYCKE (Anpassad för C-C = 360 mm) ---
+# --- SUPERMJUK PROFIL FÖR ETT MUNSTYCKE (Bredare platå för maxbredd ~2610 mm) ---
 def super_smooth_profile(x, x_pos=0.0):
     dist = np.abs(x - x_pos)
-    # Summan av half_flat och half_total sätts till exakt 360 mm för 100% täckning i överlappet
-    half_flat = 120.0   # Platt kärna i mitten (mm)
-    half_total = 240.0  # Total halvbredd per munstycke (mm)
+    # Summan blir fortfarande exakt 360 mm (170 + 190 = 360) för perfekt överlapp,
+    # men den bredare platån ökar totalkäckningen till drygt 2600 mm.
+    half_flat = 170.0   # Platt kärna i mitten (mm)
+    half_total = 190.0  # Total halvbredd per munstycke (mm)
     
     profile = np.zeros_like(x, dtype=float)
     profile[dist <= half_flat] = 1.0
