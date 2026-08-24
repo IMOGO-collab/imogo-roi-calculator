@@ -53,6 +53,13 @@ st.sidebar.header("Flöden per munstycke (%)")
 ramp1_ids = [1, 3, 5, 7, 9, 11, 13, 15]
 ramp2_ids = [2, 4, 6, 8, 10, 12, 14, 16]
 
+# --- RESET-KNAPP FÖR MUNSTYCKEN ---
+def reset_nozzles():
+    for n_id in ramp1_ids + ramp2_ids:
+        st.session_state[f"nozzle_slider_{n_id}"] = 100
+
+st.sidebar.button("🔄 Återställ alla ventiler till 100%", on_click=reset_nozzles, use_container_width=True)
+
 ramp1_flows = []
 with st.sidebar.expander("Ramp 1 (Munstycke 1, 3, 5, 7, 9, 11, 13, 15)", expanded=True):
     for n_id in ramp1_ids:
