@@ -275,15 +275,28 @@ ax.set_ylabel('Relativt flöde', fontsize=10)
 ax.grid(True, linestyle=':', alpha=0.7)
 ax.set_ylim(0, y_max)
 
+# --- HORISONTELL MARKÖR LÄNGS X-AXELN ---
+x_table = np.arange(round(total_width_min - 200.0, -1), round(total_width_max + 201.0, -1), 20.0)
+table_start = x_table[0]
+table_end = x_table[-1]
+
+y_pos = 0.05  # Placeras precis ovanför bottenlinjen
+
+# Horisontell linje med ändhakar (bracket |---|)
+ax.plot([table_start, table_end], [y_pos, y_pos], color='purple', linewidth=2, label=f'Tabellens intervall ({table_start:.0f} till {table_end:.0f} mm)')
+ax.plot([table_start, table_start], [0.0, 0.12], color='purple', linewidth=2)  # Vänster ändhake |
+ax.plot([table_end, table_end], [0.0, 0.12], color='purple', linewidth=2)      # Höger ändhake |
+
 ax.legend(loc='upper right', bbox_to_anchor=(1.25, 1), fontsize=8)
 plt.tight_layout()
 
+# --- RITA UT GRAFEN ---
 st.pyplot(fig)
 
-# --- TABELLPRESENTATION ---
+
+# --- 3. TABELLPRESENTATION ---
 st.subheader("📋 Numeriska värden i tabellform (var 20:e mm)")
 
-x_table = np.arange(round(total_width_min - 200.0, -1), round(total_width_max + 201.0, -1), 20.0)
 table_data = {'Position (mm)': np.round(x_table, 1)}
 combined_table_flow = np.zeros_like(x_table)
 
