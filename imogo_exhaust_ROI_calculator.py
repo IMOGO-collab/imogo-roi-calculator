@@ -96,9 +96,9 @@ with st.sidebar:
     st.markdown("---")
     st.header(f"💲 Costs ({curr})")
     
-    elec_price = st.number_input(f"Electricity ({curr}/kWh)", step=0.015, format="%.2f", key="elec")
+    elec_price = st.number_input(f"Electricity ({curr}/kWh)", step=0.01, format="%.2f", key="elec")
     water_price = st.number_input(f"Water ({curr}/L)", step=0.0001, format="%.5f", key="water")
-    dye_price = st.number_input(f"Dye stuff ({curr}/kg)", step=0.6, format="%.2f", key="dye_p")
+    dye_price = st.number_input(f"Dye stuff ({curr}/kg)", step=0.5, format="%.2f", key="dye_p")
     
     st.subheader(f"Chemistry Prices ({curr}/kg)")
     wetting_price = st.number_input("Wetting agent", step=0.1, format="%.2f", key="wet_p")
@@ -116,7 +116,19 @@ with st.sidebar:
     labor_price = st.number_input(f"Labor ({curr}/man-hour)", step=0.1, format="%.2f", key="labor")
     waste_price = st.number_input(f"Waste handling ({curr}/L)", format="%.5f", key="waste_p")
     co2_factor = st.number_input("CO₂ kg/kWh", value=0.202, step=0.001, key="co2")
-    investment = st.number_input(f"Imogo Investment ({curr})", step=5000.0, format="%.0f", key="inv")
+    
+    # Läs av antalet maskiner från minnet (blir 1 första gången appen laddas)
+    current_ports_dm = st.session_state.get("ports_dm", 1)
+    
+    # Pris per maskin
+    base_investment = st.number_input(f"Imogo Investment per machine ({curr})", step=5000.0, format="%.0f", key="inv")
+    
+    # Den faktiska variabeln som används i alla uträkningar multipliceras direkt här!
+    investment = base_investment * current_ports_dm
+    
+    # Tydliggör för operatören att kostnaden har dubblats om fler maskiner valts
+    if current_ports_dm > 1:
+        st.info(f"**Total investment ({current_ports_dm} machines):** {investment:,.0f} {curr}")
 
 # ====================== PRODUCTION PARAMETERS ======================
 st.subheader("📊 Production Parameters")
@@ -136,7 +148,7 @@ with col_ex:
     batches_per_day_ex = ports_ex * 6
     st.info(f"**Batches per day:** {batches_per_day_ex} (6 per machine)")
 
-    fiber_loss_ex = st.number_input("Fiber loss (%)", value=2.5, step=0.1, key="fl_ex") / 100
+    fiber_loss_ex = st.number_input("Fiber loss (%)", value=2.0, step=0.1, key="fl_ex") / 100
 
 with col_dm:
     st.subheader("🔵 Imogo Dye-max")
@@ -144,6 +156,7 @@ with col_dm:
     liq_dm = st.number_input("Liquid ratio (L/kg)", value=1.3, key="liq_dm")
     waste_dm = st.number_input("Waste/changeover (L)", value=50, key="waste_dm")
     batches_per_day_dm = st.number_input("Batches per day", value=15.00, step=0.25, key="bpd_dm")
+    ports_dm = st.number_input("Number of machines", value=1, key="ports_dm")
     changeover_min_dm = st.number_input("Changeover time per batch (min)", value=30, step=1, key="ch_dm")
     fiber_loss_dm = st.number_input("Fiber loss (%)", value=0.3, step=0.1, key="fl_dm") / 100
 
@@ -153,9 +166,30 @@ with col_shared:
     gsm = st.number_input("Fabric GSM (kg/m²)", value=0.2, key="gsm")
     days_year = st.number_input("Working days/year", value=300, key="days")
     hours_day = st.number_input("Working hours/day", value=24.0, step=1.0, key="hours_day")
-
 # ====================== PRODUCTION VOLUME SUMMARY ======================
 st.subheader("📊 Production Volume Summary & Flexibility")
+
+# 1. Beräkna volymer för kontrollerna
+ex_annual_vol = batch_ex * batches_per_day_ex * days_year
+dm_annual_vol = batch_dm * batches_per_day_dm * days_year
+dm_daily_vol = batch_dm * batches_per_day_dm
+
+# 2. Varning om årlig volym inte är samma
+if ex_annual_vol != dm_annual_vol:
+    st.warning(
+        "⚠️ **Warning:** Yearly Production Volume "
+        "has to be the same for both Exhaust and Dye-max, adjust the Dye-max output to match Exhaust increase Dye-max number of batches!"
+    )
+
+# 3. Varning om Dye-Max överstiger maxkapacitet (8000 kg per maskin)
+max_capacity_dm = 8000 * ports_dm
+
+if dm_daily_vol > max_capacity_dm:
+    st.error(
+        f"🚨 **Warning Capacity:** Dye-Max production max volume is exeded "
+        f"på {max_capacity_dm:,.0f} kg för {ports_dm} maskin(er). "
+        f"Add additional Dye-max machines!"
+    )
 p1, p2, p3 = st.columns(3)
 
 # Använd de befintliga uträknade totala batcherna per år
@@ -170,7 +204,7 @@ else:
 
 # 1. Traditional Exhaust
 with p1:
-    ex_annual_text = f"{batch_ex * batches_per_day_ex * days_year:,.0f}".replace(",", " ")
+    ex_annual_text = f"{ex_annual_vol:,.0f}".replace(",", " ")
     st.metric("**Traditional Exhaust**", f"{ex_annual_text} kg/year")
     
     ex_daily_text = f"{batch_ex * batches_per_day_ex:,.0f}".replace(",", " ")
@@ -179,20 +213,18 @@ with p1:
 
 # 2. Imogo Dye-Max
 with p2:
-    annual_dm = batch_dm * batches_per_day_dm * days_year
-    extra = annual_dm - (batch_ex * batches_per_day_ex * days_year)
+    extra = dm_annual_vol - ex_annual_vol
     
-    dm_annual_text = f"{annual_dm:,.0f}".replace(",", " ")
+    dm_annual_text = f"{dm_annual_vol:,.0f}".replace(",", " ")
     extra_text = f"↑ {extra:,.0f} kg/year extra" if extra != 0 else "Same volume"
     st.metric("**Imogo Dye-Max**", f"{dm_annual_text} kg/year", extra_text)
     
-    dm_daily_text = f"{batch_dm * batches_per_day_dm:,.0f}".replace(",", " ")
+    dm_daily_text = f"{dm_daily_vol:,.0f}".replace(",", " ")
     dm_batches_text = f"{total_batches_dm:,.0f}".replace(",", " ")
     st.caption(f"{dm_daily_text} kg/day | {dm_batches_text} batches/year")
 
 # 3. Flexibilitet (Procentuell jämförelse av totalt antal batcher)
 with p3:
-    # Skicka med procentsatsen i delta så fixar Streamlit pilen automatiskt (röd nedåt vid minus, grön uppåt vid plus)
     delta_text = f"{pct_diff_batches:.1f}%".replace(".", ",")
     
     st.metric(
@@ -201,10 +233,8 @@ with p3:
         delta=delta_text
     )
     
-    # Flytta jämförelsen till caption för enhetlig design
     batch_comp_text = f"{total_batches_dm:,.0f} vs {total_batches_ex:,.0f} total batches/yr".replace(",", " ")
     st.caption(batch_comp_text)
-
 # ====================== ENERGY ======================
 st.subheader("⚡ Energy per kg fabric")
 en1, en2 = st.columns(2)
