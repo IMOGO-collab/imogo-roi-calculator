@@ -107,9 +107,16 @@ with st.expander("🔍 Visualisera enskilt munstycke (Profil & Sprutbild)", expa
     plt.tight_layout()
     st.pyplot(fig_single)
 
-# Positioner för alla 16 munstycken
-pos_ramp1 = [i * cc_distance for i in range(8)]
-pos_ramp2 = [i * cc_distance + offset for i in range(8)]
+# --- POSITIONERING: Tyget börjar på 0 ---
+fixed_start = 0.0
+fixed_end = fixed_fabric_width
+fabric_center = fixed_fabric_width / 2.0
+
+ramp1_center = fabric_center - (cc_distance / 4.0)
+ramp2_center = fabric_center + (cc_distance / 4.0)
+
+pos_ramp1 = [ramp1_center - 3.5 * cc_distance + i * cc_distance for i in range(8)]
+pos_ramp2 = [ramp2_center - 3.5 * cc_distance + i * cc_distance for i in range(8)]
 
 nozzle_info = []
 for i in range(8):
@@ -120,8 +127,9 @@ for i in range(8):
 nozzle_info_sorted = sorted(nozzle_info, key=lambda k: k['pos'])
 
 # Mätpunkter för mjuk graf
+total_width_min = min(pos_ramp1)
 total_width_max = max(pos_ramp2)
-x_smooth = np.linspace(-300.0, total_width_max + 300.0, 1500)
+x_smooth = np.linspace(total_width_min - 300.0, total_width_max + 300.0, 1500)
 
 y_combined = np.zeros_like(x_smooth)
 y_baseline = np.zeros_like(x_smooth)
@@ -147,9 +155,7 @@ else:
     dyn_start, dyn_end, max_dyn_width = 0.0, 0.0, 0.0
 
 # --- BERÄKNING AV JUSTERAT OMRÅDE OCH PROCENTUELL MINSKNING ---
-ramp_center = (min(pos_ramp1) + max(pos_ramp2)) / 2.0
-fixed_start = ramp_center - (fixed_fabric_width / 2.0)
-fixed_end = ramp_center + (fixed_fabric_width / 2.0)
+ramp_center = fabric_center
 
 fabric_mask = (x_smooth >= fixed_start) & (x_smooth <= fixed_end)
 x_fabric = x_smooth[fabric_mask]
@@ -183,39 +189,46 @@ pct_right = calc_pct_change(y_fabric, y_fabric_baseline, right_side_mask)
 
 # --- PRESENTATION AV METRIKER ---
 st.subheader("📏 Banbreddsanalys (Profilering)")
-c1, c2, c3, c4 = st.columns(4)
+
+c1, c2, c3, c4, c5 = st.columns(5)
 
 c1.metric("Fast tygbredd", f"{fixed_fabric_width:.0f} mm")
 
+c2.metric(
+    "Max beräknad banbredd", 
+    f"{max_dyn_width:.0f} mm",
+    help="Den maximala banbredden maskinen kan täcka baserat på standardflödet och angivna marginaler."
+)
+
 if adj_width_total > 0:
-    c2.metric(
+    c3.metric(
         "Totalt justerad bredd", 
         f"{adj_width_total:.0f} mm", 
         delta=f"{pct_total:+.1f}% snittflöde", 
         delta_color="off"
     )
 else:
-    c2.metric("Totalt justerad bredd", "0 mm", delta="Standardflöde", delta_color="off")
+    c3.metric("Totalt justerad bredd", "0 mm", delta="Standardflöde", delta_color="off")
 
 if adj_width_left > 0:
-    c3.metric(
+    c4.metric(
         "Vänster sida", 
         f"{adj_width_left:.0f} mm", 
         delta=f"{pct_left:+.1f}% snittflöde", 
         delta_color="off"
     )
 else:
-    c3.metric("Vänster sida", "0 mm", delta="Ej justerad", delta_color="off")
+    c4.metric("Vänster sida", "0 mm", delta="Ej justerad", delta_color="off")
 
 if adj_width_right > 0:
-    c4.metric(
+    c5.metric(
         "Höger sida", 
         f"{adj_width_right:.0f} mm", 
         delta=f"{pct_right:+.1f}% snittflöde", 
         delta_color="off"
     )
 else:
-    c4.metric("Höger sida", "0 mm", delta="Ej justerad", delta_color="off")
+    c5.metric("Höger sida", "0 mm", delta="Ej justerad", delta_color="off")
 
 # --- GRAFISK PRESENTATION ---
 st.subheader("📊 Visualisering av flödesprofilering")
@@ -223,11 +236,10 @@ st.subheader("📊 Visualisering av flödesprofilering")
 fig, ax = plt.subplots(figsize=(14, 6))
 
 ax.axvspan(fixed_start, fixed_end, color='gray', alpha=0.1, label=f'Fast tygbredd ({fixed_fabric_width:.0f} mm)')
-ax.axvline(fixed_start, color='darkred', linestyle='-', linewidth=2, label=f'Tygkant ({fixed_start:.0f} mm)')
-ax.axvline(fixed_end, color='darkred', linestyle='-', linewidth=2, label=f'Tygkant ({fixed_end:.0f} mm)')
+ax.axvline(fixed_start, color='darkred', linestyle='-', linewidth=2, label=f'Vänster tygkant ({fixed_start:.0f} mm)')
+ax.axvline(fixed_end, color='darkred', linestyle='-', linewidth=2, label=f'Höger tygkant ({fixed_end:.0f} mm)')
 
-# Centrumlinje utritad med streck-punkt-linje (Black dash-dot)
-ax.axvline(ramp_center, color='black', linestyle='-.', linewidth=1.5, label=f'Centrumlinje ({ramp_center:.0f} mm)')
+ax.axvline(fabric_center, color='black', linestyle='-.', linewidth=1.5, label=f'Tygets centrum ({fabric_center:.0f} mm)')
 
 ax.plot(x_smooth, y_baseline, color='gray', linestyle='--', linewidth=1.5, alpha=0.7, label='Standardflöde (100% på alla ventiler)')
 
@@ -245,11 +257,16 @@ for n in nozzle_info:
 
 ax.plot(x_smooth, y_combined, color='darkblue', linewidth=3.0, label='Aktuell flödesprofil')
 
-ax.set_title(f'Flödesprofil över tygbredd ({fixed_fabric_width:.0f} mm) | C-C = {cc_distance} mm', fontsize=11)
-ax.set_xlabel('Position längs rampen [mm]', fontsize=10)
+y_max = max(2.5, np.max(y_combined) * 1.1)
+offset_text = cc_distance / 4.0
+ax.scatter(pos_ramp1, [y_max * 0.95]*8, color='tab:blue', marker='v', s=80, zorder=5, label=f'Munstycken Ramp 1 (-{offset_text:.0f} mm från centrum)')
+ax.scatter(pos_ramp2, [y_max * 0.95]*8, color='tab:orange', marker='v', s=80, zorder=5, label=f'Munstycken Ramp 2 (+{offset_text:.0f} mm från centrum)')
+
+ax.set_title(f'Flödesprofil över tygbredd ({fixed_fabric_width:.0f} mm) | C-C = {cc_distance:.0f} mm', fontsize=11)
+ax.set_xlabel('Position över tyget [mm]', fontsize=10)
 ax.set_ylabel('Relativt flöde', fontsize=10)
 ax.grid(True, linestyle=':', alpha=0.7)
-ax.set_ylim(0, max(2.5, np.max(y_combined) * 1.1))
+ax.set_ylim(0, y_max)
 
 ax.legend(loc='upper right', bbox_to_anchor=(1.25, 1), fontsize=8)
 plt.tight_layout()
@@ -259,7 +276,7 @@ st.pyplot(fig)
 # --- TABELLPRESENTATION ---
 st.subheader("📋 Numeriska värden i tabellform (var 20:e mm)")
 
-x_table = np.arange(-200.0, total_width_max + 201.0, 20.0)
+x_table = np.arange(round(total_width_min - 200.0, -1), round(total_width_max + 201.0, -1), 20.0)
 table_data = {'Position (mm)': np.round(x_table, 1)}
 combined_table_flow = np.zeros_like(x_table)
 
