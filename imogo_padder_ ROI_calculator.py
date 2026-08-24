@@ -49,9 +49,9 @@ if 'initialized' not in st.session_state:
     st.session_state.ui_elec = 0.15
     st.session_state.ui_water = 0.0001
     st.session_state.ui_dye = 6.0
-    st.session_state.ui_chem_a = 2.0
-    st.session_state.ui_chem_b = 3.0
-    st.session_state.ui_chem_c = 5.0
+    st.session_state.ui_chem_a = 0.8
+    st.session_state.ui_chem_b = 0.35
+    st.session_state.ui_chem_c = 0.25
     st.session_state.ui_waste = 0.002
     st.session_state.ui_labor = 2.0
     st.session_state.ui_inv = 550000.0
