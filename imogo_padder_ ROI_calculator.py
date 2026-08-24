@@ -46,11 +46,11 @@ if 'initialized' not in st.session_state:
     st.session_state.local_currency = "EUR"
     st.session_state.currency_rate = 1.0
     st.session_state.prev_rate = 1.0
-    st.session_state.ui_elec = 0.10
+    st.session_state.ui_elec = 0.15
     st.session_state.ui_water = 0.0001
-    st.session_state.ui_dye = 5.0
-    st.session_state.ui_chem_a = 0,35
-    st.session_state.ui_chem_b = 0,25
+    st.session_state.ui_dye = 6.0
+    st.session_state.ui_chem_a = 0.35
+    st.session_state.ui_chem_b = 0.25
     st.session_state.ui_chem_c = 0,8
     st.session_state.ui_waste = 0.002
     st.session_state.ui_labor = 2.0
@@ -87,9 +87,9 @@ with st.sidebar:
     st.number_input(f"Electricity ({curr}/kWh)", key="ui_elec", format="%.3f")
     st.number_input(f"Water ({curr}/L)", key="ui_water", format="%.4f")
     st.number_input(f"Dye stuff ({curr}/kg)", key="ui_dye")
-    st.number_input(f"Soda Ash ({curr}/kg)", key="ui_chem_a")
-    st.number_input(f"NAOH 50% ({curr}/kg)", key="ui_chem_b")
-    st.number_input(f"Wetting agent ({curr}/kg)", key="ui_chem_c")
+    st.number_input(f"Chem A ({curr}/kg)", key="ui_chem_a")
+    st.number_input(f"Chem B ({curr}/kg)", key="ui_chem_b")
+    st.number_input(f"Chem C ({curr}/kg)", key="ui_chem_c")
     st.number_input(f"Waste handling ({curr}/L)", key="ui_waste", format="%.4f")
     st.number_input(f"Labor ({curr}/man-hour)", key="ui_labor")
     st.number_input(f"Investment cost ({curr})", key="ui_inv")
@@ -154,9 +154,9 @@ with col_p:
     p_dye = st.number_input("Dye conc (%)", value=4.0, key="p_dye")
     p_conc_g_l = (p_dye * 10) / p_disp if p_disp > 0 else 0
     st.info(f"Concentration: {p_conc_g_l:.1f} g/L")
-    p_a = st.number_input("Soda Ash (g/L)", value=3.0, key="p_a")
-    p_b = st.number_input("NAOH 50% (g/L)", value=2.0, key="p_b")
-    p_c = st.number_input("Wetting agent (g/L)", value=1.5, key="p_c")
+    p_a = st.number_input("Chem A (g/L)", value=3.0, key="p_a")
+    p_b = st.number_input("Chem B (g/L)", value=2.0, key="p_b")
+    p_c = st.number_input("Chem C (g/L)", value=1.5, key="p_c")
     p_w = st.number_input("Waste water/changeover (L)", value=70, key="p_w")
     p_startup = st.number_input("Startup waste (m)", value=50.0, key="p_startup")
     p_en = st.number_input("Energy (kWh/kg)", value=0.05, format="%.4f", key="p_en")
@@ -169,9 +169,9 @@ with col_i:
     i_dye = st.number_input("Dye conc (%)", value=4.0, key="i_dye")
     i_conc_g_l = (i_dye * 10) / i_disp if i_disp > 0 else 0
     st.info(f"Concentration: {i_conc_g_l:.1f} g/L")
-    i_a = st.number_input("Soda Ash (g/L)", value=3.0, key="i_a")
-    i_b = st.number_input("NAOH 50% (g/L)", value=2.0, key="i_b")
-    i_c = st.number_input("Wetting agent (g/L)", value=1.5, key="i_c")
+    i_a = st.number_input("Chem A (g/L)", value=3.0, key="i_a")
+    i_b = st.number_input("Chem B (g/L)", value=2.0, key="i_b")
+    i_c = st.number_input("Chem C (g/L)", value=1.5, key="i_c")
     i_w = st.number_input("Waste water/changeover (L)", value=15, key="i_w")
     i_startup = st.number_input("Startup waste (m)", value=7.0, key="i_startup")
     i_en = st.number_input("Energy (kWh/kg)", value=0.035, format="%.4f", key="i_en")
