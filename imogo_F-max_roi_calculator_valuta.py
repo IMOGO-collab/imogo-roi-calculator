@@ -362,11 +362,11 @@ with col1:
     fabric_weight_lm = fabric_width * fabric_weight_sqm
     st.number_input("Fabric weight / linear meter (kg)", value=fabric_weight_lm, disabled=True, format="%.3f")
     speed = st.number_input("Production speed (m/min)", value=30.00, step=5.0, format="%.2f")
-    drying_energy = st.number_input("Drying power / kg fabric @100% pickup (kWh)", value=0.70, step=0.05, format="%.2f")
+    drying_energy = st.number_input("Drying power kWh / kg fabric @100% pickup", value=0.70, step=0.05, format="%.2f")
 
 with col2:
-    hours_day = st.number_input("Working hours per day (h)", value=21.00, step=0.5, format="%.2f")
-    days_year = st.number_input("Working days per year", value=300, min_value=1, max_value=365, step=5)
+    hours_day = st.number_input("Working hours per day (h)", value=18.00, step=0.5, format="%.2f")
+    days_year = st.number_input("Working days per year", value=320, min_value=1, max_value=365, step=5)
     changeovers_day = st.number_input("Changeovers / day", value=3, min_value=0, step=1)
 
 # ---Container här ---
@@ -391,14 +391,14 @@ with rec_col1:
     if "padder_base_pickup" not in st.session_state:
         st.session_state["padder_base_pickup"] = padder_softener_vol
 
-    # Använd bas-referensen för att räkna ut den fasta add-on-mängden
-    norm_factor = st.session_state["padder_base_pickup"] / 100.0
+   
+    padder_actual_pickup = padder_softener_vol / 100.0
 
     st.info(f"""
-    **Normalized recipe (@ 100% pickup):**
-    * Chemical A: **{padder_chem_a_g_l * norm_factor:.1f} g/L**
-    * Chemical B: **{padder_chem_b_g_l * norm_factor:.1f} g/L**
-    * Chemical C: **{padder_chem_c_g_l * norm_factor:.1f} g/L**
+    **Applied chemical per kg of fabric (at {padder_softener_vol:.1f}% pickup):**
+    * Chemical A: **{padder_chem_a_g_l * padder_actual_pickup:.1f} g/kg**
+    * Chemical B: **{padder_chem_b_g_l * padder_actual_pickup:.1f} g/kg**
+    * Chemical C: **{padder_chem_c_g_l * padder_actual_pickup:.1f} g/kg**
     """)
 
 with rec_col2:
