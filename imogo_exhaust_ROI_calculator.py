@@ -147,9 +147,9 @@ with col_ex:
     st.info(f"**Total batches per day:** {batches_per_day_ex:g} ({batches_per_day_per_machine:g} per machine across {ports_ex} machine(s))")
     
     waste_ex = batch_ex * liq_ex
-    total_waste_all_ports = waste_ex * ports_ex
+    total_waste_daily = waste_ex * batches_per_day_ex
     st.info(f"**Waste per color change per machine:** {waste_ex:,.0f} L")
-    st.info(f"**Total waste in all machines:** {total_waste_all_ports:,.0f} L")
+    st.info(f"**Total daily waste (all machines):** {total_waste_daily:,.0f} L")
 
     fiber_loss_ex = st.number_input("Fiber loss (%)", value=2.0, step=0.1, key="fl_ex") / 100
 with col_dm:
