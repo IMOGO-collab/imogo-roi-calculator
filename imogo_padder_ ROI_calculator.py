@@ -48,9 +48,9 @@ if 'initialized' not in st.session_state:
     st.session_state.ui_elec = 0.15
     st.session_state.ui_water = 0.0001
     st.session_state.ui_dye = 6.0
-    st.session_state.ui_chem_a = 2.0
-    st.session_state.ui_chem_b = 3.0
-    st.session_state.ui_chem_c = 5.0
+    st.session_state.ui_chem_a = 0.8
+    st.session_state.ui_chem_b = 0.35
+    st.session_state.ui_chem_c = 0.25
     st.session_state.ui_waste = 0.002
     st.session_state.ui_labor = 2.0
     st.session_state.ui_inv = 550000.0
@@ -117,15 +117,15 @@ price_waste_fabric = st.session_state.ui_price_waste
 col_s1, col_s2 = st.columns(2)
 
 with col_s1:
-    fabric_width = st.number_input("Fabric width (m)", value=2.0, step=0.1, key="fabric_width")
+    fabric_width = st.number_input("Fabric width (m)", value=2.2, step=0.1, key="fabric_width")
     fabric_gsm = st.number_input("Fabric GSM (kg/m²)", value=0.18, step=0.01, key="fabric_gsm")
-    working_hours_day = st.number_input("Working hours per day (h)", value=24.0, step=0.5, key="working_hours_day")
-    prod_speed = st.number_input("Production speed (m/min)", value=20.0, step=0.1, key="prod_speed")
+    working_hours_day = st.number_input("Working hours per day (h)", value=18.0, step=0.5, key="working_hours_day")
+    prod_speed = st.number_input("Production speed (m/min)", value=25.0, step=0.1, key="prod_speed")
 
 with col_s2:
     rolls_day = st.number_input("Batches/Rolls per day", value=14.0, step=1.0, key="rolls_day")
-    days_year = st.number_input("Working days per year", value=300, step=1, key="days_year")
-    changeovers_day = st.number_input("Bath changes per day", value=9, step=1, key="changeovers_day")
+    days_year = st.number_input("Working days per year", value=320, step=1, key="days_year")
+    changeovers_day = st.number_input("Bath changes per day", value=10, step=1, key="changeovers_day")
 
 est_changeover_time = 20 
 eff_hours_day = working_hours_day - (changeovers_day * est_changeover_time / 60.0)
@@ -136,36 +136,31 @@ weight_per_roll = meters_per_roll * fabric_width * fabric_gsm
 top_banner_placeholder = st.empty()
 prod_summary_placeholder = st.container()
 
-# ====================== MACHINE SPECIFIC ======================
+## ====================== MACHINE SPECIFIC ======================
 col_p, col_i = st.columns(2)
 with col_p:
     st.subheader("🟠 Traditional Padder")
     p_ch = st.number_input("Changeover time (min)", value=30, key="p_ch")
     
-    # Uppdaterat med format="%d" för att ta bort decimaler
     p_pickup = st.number_input("Pickup (%)", value=100, step=1, format="%d", key="p_pickup")
-    p_disp = p_pickup / 100.0
+    p_disp = p_pickup / 100.0 
     
     p_dye = st.number_input("Dye conc (%)", value=4.0, key="p_dye")
     p_dye_conc_g_l = (p_dye * 10) / p_disp if p_disp > 0 else 0
-    st.info(f"Concentration: {p_dye_conc_g_l:.1f} g/L")
+    # st.info borttagen härifrån, men värdet sparas!
     
-    p_a = st.number_input("Wetting Agent (g/L at 100% pickup)", value=3.0, key="p_a")
-    p_b = st.number_input("Soda Ash (g/L at 100% pickup)", value=2.0, key="p_b")
-    p_c = st.number_input("NAOH 50% (g/L at 100% pickup)", value=1.5, key="p_c")
-    p_w = st.number_input("Waste water/changeover (L)", value=70, key="p_w")
-    p_startup = st.number_input("Startup waste (m)", value=50.0, key="p_startup")
-    p_en = st.number_input("Energy (kWh/kg)", value=0.05, format="%.4f", key="p_en")
-    p_bq = st.number_input("B-quality fabric (%)", value=4.0, key="p_bq")
-    p_wf = st.number_input("Waste fabric (%)", value=1.0, key="p_wf")
+    # Hämta värden för beräkning ovanför fälten
+    val_p_a = st.session_state.get("p_a", 3.0)
+    val_p_b = st.session_state.get("p_b", 2.0)
+    val_p_c = st.session_state.get("p_c", 1.5)
     
-    # Beräkna faktiska koncentrationer baserat på vald pickup (%)
-    p_a_conc_g_l = p_a / p_disp if p_disp > 0 else 0
-    p_b_conc_g_l = p_b / p_disp if p_disp > 0 else 0
-    p_c_conc_g_l = p_c / p_disp if p_disp > 0 else 0
+    p_a_conc_g_l = val_p_a / p_disp if p_disp > 0 else 0
+    p_b_conc_g_l = val_p_b / p_disp if p_disp > 0 else 0
+    p_c_conc_g_l = val_p_c / p_disp if p_disp > 0 else 0
 
+    # Den stora blå rutan placerad ovanför Wetting Agent
     st.markdown(f"""
-    <div style="background-color: #e8f4fd; padding: 12px; border-radius: 8px; font-size: 0.95em; color: #1e3a8a; margin-top: 10px; border: 1px solid #b6e0fe;">
+    <div style="background-color: #e8f4fd; padding: 12px; border-radius: 8px; font-size: 0.95em; color: #1e3a8a; margin-bottom: 15px; border: 1px solid #b6e0fe;">
         <strong>📋 Actual Bath Concentrations (Padder):</strong><br>
         • Dye: <b>{p_dye_conc_g_l:.1f} g/L</b><br>
         • Wetting Agent: <b>{p_a_conc_g_l:.1f} g/L</b><br>
@@ -174,34 +169,37 @@ with col_p:
     </div>
     """, unsafe_allow_html=True)
 
+    p_a = st.number_input("Wetting Agent (g/L at 100% pickup)", value=3.0, key="p_a")
+    p_b = st.number_input("Soda Ash (g/L at 100% pickup)", value=2.0, key="p_b")
+    p_c = st.number_input("NAOH 50% (g/L at 100% pickup)", value=1.5, key="p_c")
+
+    p_w = st.number_input("Waste water/changeover (L)", value=70, key="p_w")
+    p_startup = st.number_input("Startup consumption waste (m)", value=50.0, key="p_startup")
+    p_en = st.number_input("Energy (kWh/kg)", value=0.05, format="%.4f", key="p_en")
+    p_bq = st.number_input("B-quality fabric (%)", value=4.0, key="p_bq")
+    p_wf = st.number_input("Waste fabric (%)", value=1.0, key="p_wf")
+
 with col_i:
     st.subheader("🔵 Imogo Dye-max")
     i_ch = st.number_input("Changeover time (min)", value=20, key="i_ch")
     
-    # Uppdaterat med format="%d" för att ta bort decimaler
     i_pickup = st.number_input("Pickup (%)", value=100, step=1, format="%d", key="i_pickup")
     i_disp = i_pickup / 100.0
     
     i_dye = st.number_input("Dye conc (%)", value=4.0, key="i_dye")
     i_dye_conc_g_l = (i_dye * 10) / i_disp if i_disp > 0 else 0
-    st.info(f"Concentration: {i_dye_conc_g_l:.1f} g/L")
+    # st.info borttagen härifrån också!
     
-    i_a = st.number_input("Wetting Agent (g/L at 100% pickup)", value=3.0, key="i_a")
-    i_b = st.number_input("Soda Ash (g/L at 100% pickup)", value=2.0, key="i_b")
-    i_c = st.number_input("NAOH 50% (g/L at 100% pickup)", value=1.5, key="i_c")
-    i_w = st.number_input("Waste water/changeover (L)", value=15, key="i_w")
-    i_startup = st.number_input("Startup waste (m)", value=7.0, key="i_startup")
-    i_en = st.number_input("Energy (kWh/kg)", value=0.035, format="%.4f", key="i_en")
-    i_bq = st.number_input("B-quality fabric (%)", value=3.0, key="i_bq")
-    i_wf = st.number_input("Waste fabric (%)", value=0.5, key="i_wf")
+    val_i_a = st.session_state.get("i_a", 3.0)
+    val_i_b = st.session_state.get("i_b", 2.0)
+    val_i_c = st.session_state.get("i_c", 1.5)
     
-    # Beräkna faktiska koncentrationer baserat på vald pickup (%)
-    i_a_conc_g_l = i_a / i_disp if i_disp > 0 else 0
-    i_b_conc_g_l = i_b / i_disp if i_disp > 0 else 0
-    i_c_conc_g_l = i_c / i_disp if i_disp > 0 else 0
+    i_a_conc_g_l = val_i_a / i_disp if i_disp > 0 else 0
+    i_b_conc_g_l = val_i_b / i_disp if i_disp > 0 else 0
+    i_c_conc_g_l = val_i_c / i_disp if i_disp > 0 else 0
 
     st.markdown(f"""
-    <div style="background-color: #e8f4fd; padding: 12px; border-radius: 8px; font-size: 0.95em; color: #1e3a8a; margin-top: 10px; border: 1px solid #b6e0fe;">
+    <div style="background-color: #e8f4fd; padding: 12px; border-radius: 8px; font-size: 0.95em; color: #1e3a8a; margin-bottom: 15px; border: 1px solid #b6e0fe;">
         <strong>📋 Actual Bath Concentrations (Imogo):</strong><br>
         • Dye: <b>{i_dye_conc_g_l:.1f} g/L</b><br>
         • Wetting Agent: <b>{i_a_conc_g_l:.1f} g/L</b><br>
@@ -209,6 +207,16 @@ with col_i:
         • NAOH 50%: <b>{i_c_conc_g_l:.1f} g/L</b>
     </div>
     """, unsafe_allow_html=True)
+
+    i_a = st.number_input("Wetting Agent (g/L at 100% pickup)", value=3.0, key="i_a")
+    i_b = st.number_input("Soda Ash (g/L at 100% pickup)", value=2.0, key="i_b")
+    i_c = st.number_input("NAOH 50% (g/L at 100% pickup)", value=1.5, key="i_c")
+
+    i_w = st.number_input("Waste water/changeover (L)", value=15, key="i_w")
+    i_startup = st.number_input("Startup consumption waste (m)", value=7.0, key="i_startup")
+    i_en = st.number_input("Energy (kWh/kg)", value=0.035, format="%.4f", key="i_en")
+    i_bq = st.number_input("B-quality fabric (%)", value=3.0, key="i_bq")
+    i_wf = st.number_input("Waste fabric (%)", value=0.5, key="i_wf")
 
 # ====================== INJEKTERA BANNERN ======================
 p_roll_weight_wet = weight_per_roll * (1 + p_disp)
