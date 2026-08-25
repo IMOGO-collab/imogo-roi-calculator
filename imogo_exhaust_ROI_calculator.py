@@ -137,25 +137,27 @@ col_ex, col_dm, col_shared = st.columns([2, 2, 2])
 with col_ex:
     st.subheader("🔴 Traditional Exhaust")
     batch_ex = st.number_input("Machine capacity (kg)", value=500, key="batch_ex")
-    ports_ex = st.number_input("Number of machines", value=2, key="ports_ex")
+    ports_ex = st.number_input("Number of machines", value=4, key="ports_ex")
     liq_ex = st.number_input("Liquid ratio (L/kg)", value=5.0, key="liq_ex")
+    
+    # Dessa måste komma efter ports_ex:
+    batches_per_day_per_machine = st.number_input("Batches per day per machine", value=3.0, step=1.0, key="batches_per_machine")
+    batches_per_day_ex = ports_ex * batches_per_day_per_machine
+    
+    st.info(f"**Total batches per day:** {batches_per_day_ex:g} ({batches_per_day_per_machine:g} per machine across {ports_ex} machine(s))")
     
     waste_ex = batch_ex * liq_ex
     total_waste_all_ports = waste_ex * ports_ex
     st.info(f"**Waste per color change per machine:** {waste_ex:,.0f} L")
     st.info(f"**Total waste in all machines:** {total_waste_all_ports:,.0f} L")
 
-    batches_per_day_ex = ports_ex * 6
-    st.info(f"**Batches per day:** {batches_per_day_ex} (6 per machine)")
-
     fiber_loss_ex = st.number_input("Fiber loss (%)", value=2.0, step=0.1, key="fl_ex") / 100
-
 with col_dm:
     st.subheader("🔵 Imogo Dye-max")
-    batch_dm = st.number_input("Batch size (kg)", value=400, key="batch_dm")
+    batch_dm = st.number_input("Batch size (kg)", value=500, max_value=500, step=10, key="batch_dm")
     liq_dm = st.number_input("Liquid ratio (L/kg)", value=1.3, key="liq_dm")
     waste_dm = st.number_input("Waste/changeover (L)", value=50, key="waste_dm")
-    batches_per_day_dm = st.number_input("Batches per day", value=15.00, step=0.25, key="bpd_dm")
+    batches_per_day_dm = st.number_input("Batches per day", value=12.00, step=0.25, key="bpd_dm")
     ports_dm = st.number_input("Number of machines", value=1, key="ports_dm")
     changeover_min_dm = st.number_input("Changeover time per batch (min)", value=30, step=1, key="ch_dm")
     fiber_loss_dm = st.number_input("Fiber loss (%)", value=0.3, step=0.1, key="fl_dm") / 100
@@ -164,77 +166,99 @@ with col_shared:
     st.subheader("Common")
     fabric_width = st.number_input("Fabric width (m)", value=2.2, key="width")
     gsm = st.number_input("Fabric GSM (kg/m²)", value=0.2, key="gsm")
-    days_year = st.number_input("Working days/year", value=300, key="days")
-    hours_day = st.number_input("Working hours/day", value=24.0, step=1.0, key="hours_day")
+    days_year = st.number_input("Working days/year", value=320, key="days")
+    hours_day = st.number_input("Working hours/day", value=18.0, step=1.0, key="hours_day")
+
 # ====================== PRODUCTION VOLUME SUMMARY ======================
 st.subheader("📊 Production Volume Summary & Flexibility")
 
-# 1. Beräkna volymer för kontrollerna
+# 1. Beräkna volymer
 ex_annual_vol = batch_ex * batches_per_day_ex * days_year
 dm_annual_vol = batch_dm * batches_per_day_dm * days_year
 dm_daily_vol = batch_dm * batches_per_day_dm
 
-# 2. Varning om årlig volym inte är samma
+# 2. Maxkapacitet för befintliga Dye-max maskiner (8000 kg per maskin och dag)
+max_daily_capacity_dm = 8000 * ports_dm
+max_annual_capacity_dm = max_daily_capacity_dm * days_year
+
+extra_daily_capacity = max_daily_capacity_dm - dm_daily_vol
+extra_annual_capacity = max_annual_capacity_dm - dm_annual_vol
+
+# 3. Varning om volymerna inte matchar
 if ex_annual_vol != dm_annual_vol:
     st.warning(
-        "⚠️ **Warning:** Yearly Production Volume "
-        "has to be the same for both Exhaust and Dye-max, adjust the Dye-max output to match Exhaust increase Dye-max number of batches!"
+        f"⚠️ **Volume Mismatch:**Exhaust ({ex_annual_vol:,.0f} kg/year) "
+        f"and Imogo Dye-Max ({dm_annual_vol:,.0f} kg/year) must be the same volume for a correct comparison."
     )
 
-# 3. Varning om Dye-Max överstiger maxkapacitet (8000 kg per maskin)
-max_capacity_dm = 8000 * ports_dm
-
-if dm_daily_vol > max_capacity_dm:
+# 3. Varning om Dye-Max överstiger maxkapacitet
+if dm_daily_vol > max_daily_capacity_dm:
     st.error(
-        f"🚨 **Warning Capacity:** Dye-Max production max volume is exeded "
-        f"på {max_capacity_dm:,.0f} kg för {ports_dm} maskin(er). "
+        f"🚨 **Warning Capacity:** Dye-Max production max volume is exceeded "
+        f"på {max_daily_capacity_dm:,.0f} kg för {ports_dm} maskin(er). "
         f"Add additional Dye-max machines!"
     )
-p1, p2, p3 = st.columns(3)
 
-# Använd de befintliga uträknade totala batcherna per år
+# Skapa 4 kolumner på samma rad
+p1, p2, p3, p4 = st.columns(4)
+
 total_batches_ex = batches_per_day_ex * days_year
 total_batches_dm = batches_per_day_dm * days_year
 
-# Räkna ut den procentuella skillnaden mellan Dye-Max och Exhaust
 if total_batches_ex > 0:
     pct_diff_batches = ((total_batches_dm - total_batches_ex) / total_batches_ex) * 100
+    pct_diff_vol = ((dm_annual_vol - ex_annual_vol) / ex_annual_vol) * 100 if ex_annual_vol > 0 else 0.0
 else:
     pct_diff_batches = 0.0
+    pct_diff_vol = 0.0
 
-# 1. Traditional Exhaust
+# 1. Traditional Exhaust (Jämfört med noll eller en baslinje, visar bara värdet)
 with p1:
     ex_annual_text = f"{ex_annual_vol:,.0f}".replace(",", " ")
     st.metric("**Traditional Exhaust**", f"{ex_annual_text} kg/year")
-    
     ex_daily_text = f"{batch_ex * batches_per_day_ex:,.0f}".replace(",", " ")
     ex_batches_text = f"{total_batches_ex:,.0f}".replace(",", " ")
     st.caption(f"{ex_daily_text} kg/day | {ex_batches_text} batches/year")
 
-# 2. Imogo Dye-Max
+# 2. Imogo Dye-Max (Med delta mot Exhaust)
 with p2:
-    extra = dm_annual_vol - ex_annual_vol
-    
     dm_annual_text = f"{dm_annual_vol:,.0f}".replace(",", " ")
-    extra_text = f"↑ {extra:,.0f} kg/year extra" if extra != 0 else "Same volume"
-    st.metric("**Imogo Dye-Max**", f"{dm_annual_text} kg/year", extra_text)
-    
+    st.metric(
+        "**Imogo Dye-Max**", 
+        f"{dm_annual_text} kg/year", 
+        delta=f"{pct_diff_vol:.1f}% vs Exhaust"
+    )
     dm_daily_text = f"{dm_daily_vol:,.0f}".replace(",", " ")
     dm_batches_text = f"{total_batches_dm:,.0f}".replace(",", " ")
     st.caption(f"{dm_daily_text} kg/day | {dm_batches_text} batches/year")
 
-# 3. Flexibilitet (Procentuell jämförelse av totalt antal batcher)
+# 3. Batch Capacity / Flexibility
 with p3:
-    delta_text = f"{pct_diff_batches:.1f}%".replace(".", ",")
+    st.metric(
+        "**Batch Flexibility**", 
+        f"{pct_diff_batches:.1f}%", 
+        delta=f"{pct_diff_batches:.1f}%"
+    )
+    st.caption(f"{total_batches_dm:,.0f} vs {total_batches_ex:,.0f} total batches/yr")
+
+# 4. Available Extra Capacity (Visar andelen extra kapacitet i procent som delta)
+if dm_annual_vol > 0:
+    pct_extra_cap = (extra_annual_capacity / dm_annual_vol) * 100
+else:
+    pct_extra_cap = 0.0
+
+with p4:
+    extra_annual_text = f"{extra_annual_capacity:,.0f}".replace(",", " ")
+    extra_daily_text = f"{extra_daily_capacity:,.0f}".replace(",", " ")
+    max_daily_text = f"{max_daily_capacity_dm:,.0f}".replace(",", " ")
     
     st.metric(
-        "**Batch Capacity / Flexibility**", 
-        f"{pct_diff_batches:.0f}%".replace(".", ",") + "%" if isinstance(pct_diff_batches, float) else f"{pct_diff_batches}%", 
-        delta=delta_text
+        "**Available Extra Capacity**", 
+        f"+{extra_annual_text} kg/year", 
+        delta=f"+{pct_extra_cap:.1f}% free capacity"
     )
-    
-    batch_comp_text = f"{total_batches_dm:,.0f} vs {total_batches_ex:,.0f} total batches/yr".replace(",", " ")
-    st.caption(batch_comp_text)
+    st.caption(f"+{extra_daily_text} kg/day | Max {max_daily_text} kg/d")
+
 # ====================== ENERGY ======================
 st.subheader("⚡ Energy per kg fabric")
 en1, en2 = st.columns(2)
@@ -267,13 +291,38 @@ with r1:
     anti_ex = st.number_input("Anti foam (g/L)", value=0.5, key="anti_ex")
     salt_ex = st.number_input("Salt (g/L)", value=80.0, key="salt_ex")
 
+    total_water_ex_batch = batch_ex * liq_ex
+    dye_ex_batch_kg = batch_ex * dye_a_ex_owf
+    wetting_ex_batch_kg = (total_water_ex_batch * wetting_ex) / 1000
+    soda_ex_batch_kg = (total_water_ex_batch * soda_ex) / 1000
+    caustic_ex_batch_kg = (total_water_ex_batch * caustic_ex) / 1000
+    salt_ex_batch_kg = (total_water_ex_batch * salt_ex) / 1000
+
+    st.markdown(f"""
+    <div style="background-color: #e8f4fd; padding: 12px; border-radius: 8px; font-size: 0.95em; color: #1e3a8a; margin-top: 15px; border: 1px solid #b6e0fe;">
+        <strong>📋 Exhaust Bath Summary (Liter i maskin):</strong><br>
+        • Total water per batch: <b>{total_water_ex_batch:,.0f} L</b> (1:{liq_ex} ratio)<br>
+        • Dye A: <b>{dye_a_ex_owf*100:.3f}% OWF</b> ({dye_ex_batch_kg:.2f} kg)<br>
+        • Wetting: <b>{wetting_ex:.1f} g/L</b> ({wetting_ex_batch_kg:.2f} kg) | Soda: <b>{soda_ex:.1f} g/L</b> ({soda_ex_batch_kg:.2f} kg)<br>
+        • NAOH: <b>{caustic_ex:.1f} g/L</b> ({caustic_ex_batch_kg:.2f} kg) | Salt: <b>{salt_ex:.1f} g/L</b> ({salt_ex_batch_kg:.2f} kg)
+    </div>
+    """, unsafe_allow_html=True)
+
 with r2:
+   with r2:
     st.markdown("**Dye-max**")
+    
+    with st.expander("💡 Guide: Dye Reduction"):
+        st.markdown("""
+        * **Light colors:** 10%
+        * **Medium colors:** 20%
+        * **Dark colors:** 30%
+        """)
+        
     dye_reduction_pct = st.number_input("Dye reduction (%) vs Exhaust", value=10.0, step=0.1, key="dye_red")
     dye_a_dm_owf = dye_a_ex_owf * (1 - dye_reduction_pct / 100)
     dye_a_dm_gl = (dye_a_dm_owf * 1000) / liq_dm if liq_dm > 0 else 0
-    st.info(f"Dye A OWF: **{dye_a_dm_owf*100:.3f}%** | Concentration: **{dye_a_dm_gl:.1f} g/L**")
-    
+       
     wetting_dm = st.number_input("Wetting (g/L)", value=1.0, key="wet_dm")
     soda_dm = st.number_input("Soda (g/L)", value=16.0, key="soda_dm")
     caustic_dm = st.number_input("NAOH (g/L)", value=5.0, key="cau_dm")
@@ -282,6 +331,22 @@ with r2:
     lub_dm = st.number_input("Lubrication (g/L)", value=0.0, key="lub_dm")
     anti_dm = st.number_input("Anti foam (g/L)", value=0.0, key="anti_dm")
     salt_dm = st.number_input("Salt (g/L)", value=0.0, key="salt_dm")
+
+    total_water_dm_batch = batch_dm * liq_dm
+    dye_dm_batch_kg = batch_dm * dye_a_dm_owf
+    wetting_dm_batch_kg = (total_water_dm_batch * wetting_dm) / 1000
+    soda_dm_batch_kg = (total_water_dm_batch * soda_dm) / 1000
+    caustic_dm_batch_kg = (total_water_dm_batch * caustic_dm) / 1000
+
+    st.markdown(f"""
+    <div style="background-color: #e8f4fd; padding: 12px; border-radius: 8px; font-size: 0.95em; color: #1e3a8a; margin-top: 15px; border: 1px solid #b6e0fe;">
+        <strong>📋 Dye-max Bath Summary (Spray Pickup):</strong><br>
+        • Spray pickup / Liquid: <b>{liq_dm:.2f} L/kg</b> ({liq_dm*100:.0f}%) — Total: <b>{total_water_dm_batch:,.1f} L</b><br>
+        • Dye A: <b>{dye_a_dm_owf*100:.3f}% OWF</b> (Conc: <b>{dye_a_dm_gl:.1f} g/L</b> | {dye_dm_batch_kg:.2f} kg)<br>
+        • Wetting: <b>{wetting_dm:.1f} g/L</b> ({wetting_dm_batch_kg:.2f} kg) | Soda: <b>{soda_dm:.1f} g/L</b> ({soda_dm_batch_kg:.2f} kg)<br>
+        • NAOH: <b>{caustic_dm:.1f} g/L</b> ({caustic_dm_batch_kg:.2f} kg)
+    </div>
+    """, unsafe_allow_html=True)
 
 # ====================== CALCULATIONS ======================
 batches_ex = batches_per_day_ex * days_year
@@ -561,6 +626,7 @@ html_report = f"""
     <h2>Production Summary</h2>
     <p><strong>Traditional Exhaust:</strong> {pdf_annual_ex} kg/year</p>
     <p><strong>Imogo Dye-max:</strong> {pdf_annual_dm} kg/year</p>
+    <p><strong>Available Extra Capacity Dye-max:</strong> +{extra_annual_capacity:,.0f} kg/year (+{extra_daily_capacity:,.0f} kg/day)</p>
 
     <h2>Physical Savings</h2>
     <p>Dye Stuff: <strong>{pdf_dye_sav_kg} kg/year</strong></p>
