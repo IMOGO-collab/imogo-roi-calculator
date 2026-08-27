@@ -699,7 +699,7 @@ html_content = f"""
 <body>
     <h1>Imogo F-Max ROI & Environmental Report</h1>
     <div class="meta">
-        <strong>Prepared for:</strong> Imogo &nbsp;|&nbsp; <strong>Generated:</strong> {current_time_str}
+    <strong>Prepared for:</strong> {display_customer} &nbsp;|&nbsp; <strong>Generated:</strong> {current_time_str}
     </div>
 
     <div class="card">
