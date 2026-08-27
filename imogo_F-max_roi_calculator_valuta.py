@@ -306,6 +306,10 @@ class FMaxCalculator:
 # SIDEBAR CONTROLS
 # ------------------------------------------------------------------------------
 with st.sidebar:
+
+	# 👤 Customer name
+    customer_name = st.text_input("Customer name", value="", key="customer_name_input")
+
     st.header("⚙️ Currency & Settings")
     
     currency = st.text_input("Currency", value="EUR")
@@ -670,6 +674,9 @@ st.divider()
 st.header("📄 Generate Report")
 
 current_time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+# Om kundnamnet är tomt kan vi sätta ett standardvärde eller låta det stå öppet
+display_customer = customer_name if customer_name else ""
 
 html_content = f"""
 <!DOCTYPE html>
