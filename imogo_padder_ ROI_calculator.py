@@ -2,6 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
+from translations_padder import LANGUAGES
+
+# ====================== KONFIGURATION & FUNKTIONER ======================
+# set_page_config MÅSTE vara det allra första Streamlit-anropet
+st.set_page_config(page_title="Imogo Dye-max ROI Calculator", layout="wide", page_icon="💰")
 
 # ====================== LÖSENORDSSKYDD ======================
 def check_password():
@@ -31,13 +36,15 @@ def check_password():
 if not check_password():
     st.stop()
 
-# ====================== KONFIGURATION & FUNKTIONER ======================
-st.set_page_config(page_title="Imogo Dye-max ROI Calculator", layout="wide", page_icon="💰")
+# ====================== SPRÅKHANTERING ======================
+if "lang" not in st.session_state:
+    st.session_state.lang = "EN"
+
+def t(key):
+    return LANGUAGES.get(st.session_state.lang, {}).get(key, key)
 
 def format_num(value):
     return "{:,.0f}".format(value).replace(",", " ")
-
-st.title("💰 Imogo Dye-max vs Traditional Padder – ROI Calculator")
 
 # ====================== INITIALISERING ======================
 if 'initialized' not in st.session_state:
@@ -61,10 +68,20 @@ if 'initialized' not in st.session_state:
 
 # ====================== SIDEBAR ======================
 with st.sidebar:
-    customer_name = st.text_input("Customer name", value="", key="customer_name_input")
-    curr = st.text_input("Currency (i.e. EUR, SEK, USD)", value="EUR", key="curr_input").strip().upper()
+    # Hämtar språkkoder (t.ex. 'EN', 'PT-BR') direkt från translations_padder.py
+    available_languages = list(LANGUAGES.keys())
+    current_index = available_languages.index(st.session_state.lang) if st.session_state.lang in available_languages else 0
+    
+    st.session_state.lang = st.selectbox(
+        "🌐 Language", 
+        options=available_languages,
+        index=current_index
+    )
+    st.markdown("---")    
+    customer_name = st.text_input(t("customer_name"), value="", key="customer_name_input")
+    curr = st.text_input(t("currency"), value="EUR", key="curr_input").strip().upper()
     current_rate = st.session_state.get("conv_key", 1.00)
-    conv = st.number_input(f"Exchange rate (1 EUR = {current_rate:.2f} {curr})", value=1.00, step=0.10, format="%.2f", key="conv_key")
+    conv = st.number_input(f"{t('exchange_rate')} (1 EUR = {current_rate:.2f} {curr})", value=1.00, step=0.10, format="%.2f", key="conv_key")
     
     if "prev_rate" not in st.session_state:
         st.session_state.prev_rate = 1.0
@@ -82,22 +99,24 @@ with st.sidebar:
         st.session_state.prev_rate = conv
         st.rerun()
 
-    st.header(f"Costs ({curr})")
-    st.number_input(f"Electricity ({curr}/kWh)", key="ui_elec", format="%.3f")
-    st.number_input(f"Water ({curr}/L)", key="ui_water", format="%.4f")
-    st.number_input(f"Dye stuff ({curr}/kg)", key="ui_dye")
-    st.number_input(f"Wetting Agent ({curr}/kg)", key="ui_chem_a")
-    st.number_input(f"Soda Ash ({curr}/kg)", key="ui_chem_b")
-    st.number_input(f"NAOH 50% ({curr}/kg)", key="ui_chem_c")
-    st.number_input(f"Waste handling ({curr}/L)", key="ui_waste", format="%.4f")
-    st.number_input(f"Labor ({curr}/man-hour)", key="ui_labor")
+    st.header(f"{t('costs')} ({curr})")
+    st.number_input(f"{t('electricity')} ({curr}/kWh)", key="ui_elec", format="%.3f")
+    st.number_input(f"{t('water')} ({curr}/L)", key="ui_water", format="%.4f")
+    st.number_input(f"{t('dye_stuff')} ({curr}/kg)", key="ui_dye")
+    st.number_input(f"{t('wetting_agent')} ({curr}/kg)", key="ui_chem_a")
+    st.number_input(f"{t('soda_ash')} ({curr}/kg)", key="ui_chem_b")
+    st.number_input(f"{t('naoh')} ({curr}/kg)", key="ui_chem_c")
+    st.number_input(f"{t('waste_handling')} ({curr}/L)", key="ui_waste", format="%.4f")
+    st.number_input(f"{t('labor')} ({curr}/man-hour)", key="ui_labor")
     st.number_input("CO₂ kg/kWh", key="ui_co2", format="%.2f", step=0.01)
-    st.number_input(f"Investment cost ({curr})", key="ui_inv")
+    st.number_input(f"{t('investment_cost')} ({curr})", key="ui_inv")
     
-    st.subheader(f"Tygpriser ({curr}/kg)")
-    st.number_input(f"Price A-quality fabric", key="ui_price_a")
-    st.number_input(f"Price B-quality fabric", key="ui_price_b")
-    st.number_input(f"Price Waste fabric", key="ui_price_waste")
+    st.subheader(f"{t('fabric_prices')} ({curr}/kg)")
+    st.number_input(t("price_a_quality"), key="ui_price_a")
+    st.number_input(t("price_b_quality"), key="ui_price_b")
+    st.number_input(t("price_waste_fabric"), key="ui_price_waste")
+
+st.title(t("app_title"))
 
 # ====================== KONVERTERING ======================
 elec_price = st.session_state.ui_elec
@@ -117,15 +136,15 @@ price_waste_fabric = st.session_state.ui_price_waste
 col_s1, col_s2 = st.columns(2)
 
 with col_s1:
-    fabric_width = st.number_input("Fabric width (m)", value=2.2, step=0.1, key="fabric_width")
-    fabric_gsm = st.number_input("Fabric GSM (kg/m²)", value=0.18, step=0.01, key="fabric_gsm")
-    working_hours_day = st.number_input("Working hours per day (h)", value=18.0, step=0.5, key="working_hours_day")
-    prod_speed = st.number_input("Production speed (m/min)", value=25.0, step=0.1, key="prod_speed")
+    fabric_width = st.number_input(t("fabric_width"), value=2.2, step=0.1, key="fabric_width")
+    fabric_gsm = st.number_input(t("fabric_gsm"), value=0.18, step=0.01, key="fabric_gsm")
+    working_hours_day = st.number_input(t("working_hours_day"), value=18.0, step=0.5, key="working_hours_day")
+    prod_speed = st.number_input(t("prod_speed"), value=25.0, step=0.1, key="prod_speed")
 
 with col_s2:
-    rolls_day = st.number_input("Batches/Rolls per day", value=14.0, step=1.0, key="rolls_day")
-    days_year = st.number_input("Working days per year", value=320, step=1, key="days_year")
-    changeovers_day = st.number_input("Bath changes per day", value=10, step=1, key="changeovers_day")
+    rolls_day = st.number_input(t("batches_day"), value=14.0, step=1.0, key="rolls_day")
+    days_year = st.number_input(t("days_year"), value=320, step=1, key="days_year")
+    changeovers_day = st.number_input(t("changeovers_day"), value=10, step=1, key="changeovers_day")
 
 est_changeover_time = 20 
 eff_hours_day = working_hours_day - (changeovers_day * est_changeover_time / 60.0)
@@ -136,20 +155,18 @@ weight_per_roll = meters_per_roll * fabric_width * fabric_gsm
 top_banner_placeholder = st.empty()
 prod_summary_placeholder = st.container()
 
-## ====================== MACHINE SPECIFIC ======================
+# ====================== MACHINE SPECIFIC ======================
 col_p, col_i = st.columns(2)
 with col_p:
-    st.subheader("🟠 Traditional Padder")
-    p_ch = st.number_input("Changeover time (min)", value=30, key="p_ch")
+    st.subheader(t("trad_padder"))
+    p_ch = st.number_input(t("changeover_time"), value=30, key="p_ch")
     
-    p_pickup = st.number_input("Pickup (%)", value=100, step=1, format="%d", key="p_pickup")
+    p_pickup = st.number_input(t("pickup"), value=100, step=1, format="%d", key="p_pickup")
     p_disp = p_pickup / 100.0 
     
-    p_dye = st.number_input("Dye conc (%)", value=4.0, key="p_dye")
+    p_dye = st.number_input(t("dye_conc"), value=4.0, key="p_dye")
     p_dye_conc_g_l = (p_dye * 10) / p_disp if p_disp > 0 else 0
-    # st.info borttagen härifrån, men värdet sparas!
     
-    # Hämta värden för beräkning ovanför fälten
     val_p_a = st.session_state.get("p_a", 3.0)
     val_p_b = st.session_state.get("p_b", 2.0)
     val_p_c = st.session_state.get("p_c", 1.5)
@@ -158,37 +175,35 @@ with col_p:
     p_b_conc_g_l = val_p_b / p_disp if p_disp > 0 else 0
     p_c_conc_g_l = val_p_c / p_disp if p_disp > 0 else 0
 
-    # Den stora blå rutan placerad ovanför Wetting Agent
     st.markdown(f"""
     <div style="background-color: #e8f4fd; padding: 12px; border-radius: 8px; font-size: 0.95em; color: #1e3a8a; margin-bottom: 15px; border: 1px solid #b6e0fe;">
-        <strong>📋 Actual Bath Concentrations (Padder):</strong><br>
-        • Dye: <b>{p_dye_conc_g_l:.1f} g/L</b><br>
-        • Wetting Agent: <b>{p_a_conc_g_l:.1f} g/L</b><br>
-        • Soda Ash: <b>{p_b_conc_g_l:.1f} g/L</b><br>
-        • NAOH 50%: <b>{p_c_conc_g_l:.1f} g/L</b>
+        <strong>{t('actual_bath_padder')}</strong><br>
+        • {t('dye')} <b>{p_dye_conc_g_l:.1f} g/L</b><br>
+        • {t('wetting_agent')}: <b>{p_a_conc_g_l:.1f} g/L</b><br>
+        • {t('soda_ash')}: <b>{p_b_conc_g_l:.1f} g/L</b><br>
+        • {t('naoh')}: <b>{p_c_conc_g_l:.1f} g/L</b>
     </div>
     """, unsafe_allow_html=True)
 
-    p_a = st.number_input("Wetting Agent (g/L at 100% pickup)", value=3.0, key="p_a")
-    p_b = st.number_input("Soda Ash (g/L at 100% pickup)", value=2.0, key="p_b")
-    p_c = st.number_input("NAOH 50% (g/L at 100% pickup)", value=1.5, key="p_c")
+    p_a = st.number_input(t("wetting_agent_100"), value=3.0, key="p_a")
+    p_b = st.number_input(t("soda_ash_100"), value=2.0, key="p_b")
+    p_c = st.number_input(t("naoh_100"), value=1.5, key="p_c")
 
-    p_w = st.number_input("Waste water/changeover (L)", value=70, key="p_w")
-    p_startup = st.number_input("Startup consumption waste (m)", value=50.0, key="p_startup")
-    p_en = st.number_input("Energy (kWh/kg)", value=0.05, format="%.4f", key="p_en")
-    p_bq = st.number_input("B-quality fabric (%)", value=4.0, key="p_bq")
-    p_wf = st.number_input("Waste fabric (%)", value=1.0, key="p_wf")
+    p_w = st.number_input(t("waste_water_ch"), value=70, key="p_w")
+    p_startup = st.number_input(t("startup_waste"), value=50.0, key="p_startup")
+    p_en = st.number_input(t("energy"), value=0.05, format="%.4f", key="p_en")
+    p_bq = st.number_input(t("b_quality_pct"), value=4.0, key="p_bq")
+    p_wf = st.number_input(t("waste_fabric_pct"), value=1.0, key="p_wf")
 
 with col_i:
-    st.subheader("🔵 Imogo Dye-max")
-    i_ch = st.number_input("Changeover time (min)", value=20, key="i_ch")
+    st.subheader(t("imogo_dyemax"))
+    i_ch = st.number_input(t("changeover_time"), value=20, key="i_ch", help="i_ch")
     
-    i_pickup = st.number_input("Pickup (%)", value=100, step=1, format="%d", key="i_pickup")
+    i_pickup = st.number_input(t("pickup"), value=100, step=1, format="%d", key="i_pickup", help="i_pickup")
     i_disp = i_pickup / 100.0
     
-    i_dye = st.number_input("Dye conc (%)", value=4.0, key="i_dye")
+    i_dye = st.number_input(t("dye_conc"), value=4.0, key="i_dye", help="i_dye")
     i_dye_conc_g_l = (i_dye * 10) / i_disp if i_disp > 0 else 0
-    # st.info borttagen härifrån också!
     
     val_i_a = st.session_state.get("i_a", 3.0)
     val_i_b = st.session_state.get("i_b", 2.0)
@@ -200,23 +215,23 @@ with col_i:
 
     st.markdown(f"""
     <div style="background-color: #e8f4fd; padding: 12px; border-radius: 8px; font-size: 0.95em; color: #1e3a8a; margin-bottom: 15px; border: 1px solid #b6e0fe;">
-        <strong>📋 Actual Bath Concentrations (Imogo):</strong><br>
-        • Dye: <b>{i_dye_conc_g_l:.1f} g/L</b><br>
-        • Wetting Agent: <b>{i_a_conc_g_l:.1f} g/L</b><br>
-        • Soda Ash: <b>{i_b_conc_g_l:.1f} g/L</b><br>
-        • NAOH 50%: <b>{i_c_conc_g_l:.1f} g/L</b>
+        <strong>{t('actual_bath_imogo')}</strong><br>
+        • {t('dye')} <b>{i_dye_conc_g_l:.1f} g/L</b><br>
+        • {t('wetting_agent')}: <b>{i_a_conc_g_l:.1f} g/L</b><br>
+        • {t('soda_ash')}: <b>{i_b_conc_g_l:.1f} g/L</b><br>
+        • {t('naoh')}: <b>{i_c_conc_g_l:.1f} g/L</b>
     </div>
     """, unsafe_allow_html=True)
 
-    i_a = st.number_input("Wetting Agent (g/L at 100% pickup)", value=3.0, key="i_a")
-    i_b = st.number_input("Soda Ash (g/L at 100% pickup)", value=2.0, key="i_b")
-    i_c = st.number_input("NAOH 50% (g/L at 100% pickup)", value=1.5, key="i_c")
+    i_a = st.number_input(t("wetting_agent_100"), value=3.0, key="i_a", help="i_a")
+    i_b = st.number_input(t("soda_ash_100"), value=2.0, key="i_b", help="i_b")
+    i_c = st.number_input(t("naoh_100"), value=1.5, key="i_c", help="i_c")
 
-    i_w = st.number_input("Waste water/changeover (L)", value=15, key="i_w")
-    i_startup = st.number_input("Startup consumption waste (m)", value=7.0, key="i_startup")
-    i_en = st.number_input("Energy (kWh/kg)", value=0.035, format="%.4f", key="i_en")
-    i_bq = st.number_input("B-quality fabric (%)", value=3.0, key="i_bq")
-    i_wf = st.number_input("Waste fabric (%)", value=0.5, key="i_wf")
+    i_w = st.number_input(t("waste_water_ch"), value=15, key="i_w", help="i_w")
+    i_startup = st.number_input(t("startup_waste"), value=7.0, key="i_startup", help="i_startup")
+    i_en = st.number_input(t("energy"), value=0.035, format="%.4f", key="i_en", help="i_en")
+    i_bq = st.number_input(t("b_quality_pct"), value=3.0, key="i_bq", help="i_bq")
+    i_wf = st.number_input(t("waste_fabric_pct"), value=0.5, key="i_wf", help="i_wf")
 
 # ====================== INJEKTERA BANNERN ======================
 p_roll_weight_wet = weight_per_roll * (1 + p_disp)
@@ -234,16 +249,17 @@ else:
 with top_banner_placeholder.container():
     st.markdown(f"""
     <div style="background-color: {bg_color}; padding: 10px; border-radius: 10px; font-size: 1.1em; color: {text_color};">
-        <strong>Fabric length per roll:</strong> {meters_per_roll:,.0f} m 
+        <strong>{t('fabric_length_roll')}</strong> {meters_per_roll:,.0f} m 
         <span style="margin: 0 15px; opacity: 0.5;">|</span> 
-        <strong>Fabric weight per roll:</strong> {weight_per_roll:,.1f} kg
+        <strong>{t('fabric_weight_roll')}</strong> {weight_per_roll:,.1f} kg
         <span style="margin: 0 15px; opacity: 0.5;">|</span> 
-        <strong>Roll wet weight total:</strong> {i_roll_weight_wet:.1f} kg{warning}
+        <strong>{t('roll_wet_weight')}</strong> {i_roll_weight_wet:.1f} kg{warning}
     </div>
     """, unsafe_allow_html=True)
     
     with st.popover("ℹ️"):
-        st.write("Max wet roll weight is 1500 kg.")
+        st.write(t("max_weight_warning"))
+
 # ====================== BERÄKNINGAR ======================
 effective_hours_p = working_hours_day - (changeovers_day * p_ch / 60.0)
 p_daily_m = prod_speed * 60 * effective_hours_p
@@ -260,20 +276,20 @@ annual_changeovers = changeovers_day * days_year
 
 with prod_summary_placeholder:
     st.markdown("---")
-    st.subheader("📊 Production Volume Summary")
+    st.subheader(t("prod_volume_summary"))
     col_sum1, col_sum2 = st.columns(2)
 
     with col_sum1:
-        st.metric("**Traditional Padder**", f"{format_num(base_annual_kg)} kg/year")
-        st.caption(f"**{format_num(p_daily_m)} m/day** | **{format_num(p_daily_kg)} kg/day** | **{prod_speed:.1f} m/min**")
+        st.metric(f"**{t('trad_padder')[2:]}**", f"{format_num(base_annual_kg)} {t('kg_year')}")
+        st.caption(f"**{format_num(p_daily_m)} {t('m_day')}** | **{format_num(p_daily_kg)} {t('kg_day')}** | **{prod_speed:.1f} m/min**")
 
     with col_sum2:
         st.metric(
-            "**Imogo Dye-Max**", 
-            f"{format_num(base_annual_kg)} kg/year", 
-            delta=f"↑ {format_num(extra_annual_kg)} kg/year extra capacity"
+            f"**{t('imogo_dyemax')[2:]}**", 
+            f"{format_num(base_annual_kg)} {t('kg_year')}", 
+            delta=f"↑ {format_num(extra_annual_kg)} {t('kg_year')} {t('extra_capacity')}"
         )
-        st.caption(f"**{format_num(p_daily_m)} m/day** | **{format_num(p_daily_kg)} kg/day** | **{prod_speed:.1f} m/min**")
+        st.caption(f"**{format_num(p_daily_m)} {t('m_day')}** | **{format_num(p_daily_kg)} {t('kg_day')}** | **{prod_speed:.1f} m/min**")
     st.markdown("---")
 
 p_disp_L = base_annual_kg * p_disp
@@ -343,7 +359,6 @@ water_savings_m3 = (p_total_water - i_total_water) / 1000
 
 co2_kg_per_kwh = st.session_state.ui_co2
 
-# Räknar om till kWh för att matcha bilden, istället för MWh
 water_savings_m3 = (p_total_water - i_total_water) / 1000
 energy_savings_kwh = p_total_energy - i_total_energy
 co2_savings_tonnes = (energy_savings_kwh * co2_kg_per_kwh) / 1000
@@ -360,59 +375,54 @@ p_cost_per_kg = p_total_cost / base_annual_kg if base_annual_kg > 0 else 0
 i_cost_per_kg = i_total_cost / base_annual_kg if base_annual_kg > 0 else 0
 
 # ====================== NYA UI-UPPDATERINGAR ENLIGT BILDER ======================
-
 st.markdown("---")
-st.header("📈 Savings Overview")
+st.header(t("savings_overview"))
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Annual Savings", f"{curr} {format_num(annual_savings)}")
-col2.metric("Payback Period", f"{payback_months:.0f} months")
-col3.metric("Dye Stuff Savings", f"{format_num(total_dye_savings_kg)} kg/year")
-col4.metric("Chemistry Savings", f"{format_num(total_chem_savings_kg)} kg/year")
+col1.metric(t("annual_savings"), f"{curr} {format_num(annual_savings)}")
+col2.metric(t("payback_period"), f"{payback_months:.0f} {t('months')}")
+col3.metric(t("dye_savings"), f"{format_num(total_dye_savings_kg)} {t('kg_year')}")
+col4.metric(t("chem_savings"), f"{format_num(total_chem_savings_kg)} {t('kg_year')}")
 
-st.write("") # Skapar lite visuell rymd mellan raderna
+st.write("") 
 
-st.header("🌍 Environmental Savings")
+st.header(t("env_savings"))
 col_env1, col_env2, col_env3 = st.columns(3)
-col_env1.metric("Water Savings", f"{format_num(water_savings_m3)} m³/year")
-col_env2.metric("CO₂ Savings", f"{co2_savings_tonnes:.1f} tonnes/year")
-col_env3.metric("Energy Savings", f"{format_num(energy_savings_kwh)} kWh/year")
+col_env1.metric(t("water_savings"), f"{format_num(water_savings_m3)} m³/{t('kg_year').split('/')[1]}")
+col_env2.metric(t("co2_savings"), f"{co2_savings_tonnes:.1f} tonnes/{t('kg_year').split('/')[1]}")
+col_env3.metric(t("energy_savings"), f"{format_num(energy_savings_kwh)} kWh/{t('kg_year').split('/')[1]}")
 
 st.markdown("---")
-st.header("💰 Total Cost per kg Fabric")
+st.header(t("total_cost_kg"))
 
 col_c1, col_c2 = st.columns(2)
 with col_c1:
-    st.metric("Traditional Padder", f"{curr} {p_cost_per_kg:.2f} / kg")
+    st.metric(t("trad_padder")[2:], f"{curr} {p_cost_per_kg:.2f} {t('per_kg')}")
 
 with col_c2:
     cost_diff = p_cost_per_kg - i_cost_per_kg
     cost_diff_pct = (cost_diff / p_cost_per_kg) * 100 if p_cost_per_kg > 0 else 0
-    # Streamlit skapar automatiskt pilen nedåt när strängen börjar med '-', och 'inverse' gör den grön
-    delta_str = f"-{curr} {cost_diff:.2f} / kg ({cost_diff_pct:.1f}%)"
-    st.metric("Imogo Dye-Max", f"{curr} {i_cost_per_kg:.2f} / kg", delta=delta_str, delta_color="inverse")
-
+    delta_str = f"-{curr} {cost_diff:.2f} {t('per_kg')} ({cost_diff_pct:.1f}%)"
+    st.metric(t("imogo_dyemax")[2:], f"{curr} {i_cost_per_kg:.2f} {t('per_kg')}", delta=delta_str, delta_color="inverse")
 
 # ====================== DETALJERAD INFO ======================
 st.markdown("---")
-st.header("📊 Detailed Savings Breakdown")
+st.header(t("detailed_breakdown"))
 breakdown_data = {
-    "Category": ["Dye Stuff", "Chemistry", "Water", "Energy", "Waste Handling", "Labor", "B-Quality Reduction", "Waste Fabric Reduction"],
-    "Savings (" + curr + ")": [total_dye_savings, total_chem_savings, water_savings, energy_savings, waste_savings, labor_savings, b_quality_savings, waste_fabric_savings]
+    t("category"): [t("dye_stuff"), t("chem_savings").replace(" Savings", ""), t("process_water"), t("energy"), t("waste_handling"), t("labor"), t("b_quality_reduction"), t("waste_fabric_reduction")],
+    f"{t('savings')} ({curr})": [total_dye_savings, total_chem_savings, water_savings, energy_savings, waste_savings, labor_savings, b_quality_savings, waste_fabric_savings]
 }
 df_breakdown = pd.DataFrame(breakdown_data)
-df_breakdown = df_breakdown.sort_values(by="Savings (" + curr + ")", ascending=False)
-st.dataframe(df_breakdown.style.format({"Savings (" + curr + ")": "{:,.0f}"}), use_container_width=True)
+df_breakdown = df_breakdown.sort_values(by=f"{t('savings')} ({curr})", ascending=False)
+st.dataframe(df_breakdown.style.format({f"{t('savings')} ({curr})": "{:,.0f}"}), use_container_width=True)
 
 # ====================== VISUALISERING ENLIGT BILD ======================
-
 st.markdown("---")
 
-# 1. Yearly savings per category (Liggande staplar)
 categories = [
-    "Dye Stuff", "Chem A", "Chem B", "Chem C", 
-    "Process Water", "Waste Handling", "Energy", 
-    "Labor", "B-Quality", "Waste Fabric"
+    t("dye_stuff"), "Chem A", "Chem B", "Chem C", 
+    t("process_water"), t("waste_handling"), t("energy"), 
+    t("labor"), "B-Quality", "Waste Fabric"
 ]
 
 savings_values = [
@@ -435,31 +445,31 @@ fig_savings = go.Figure(go.Bar(
     marker_color='#00bfff'
 ))
 fig_savings.update_layout(
-    title=f"Yearly savings per category ({curr}/year)",
-    xaxis_title=f"{curr} Savings",
-    yaxis=dict(autorange="reversed"),  # För att få Dye Stuff högst upp som på bilden
+    title=f"{t('yearly_savings_cat')} ({curr}/{t('kg_year').split('/')[1]})",
+    xaxis_title=f"{curr} {t('savings')}",
+    yaxis=dict(autorange="reversed"),  
     height=450
 )
 st.plotly_chart(fig_savings, use_container_width=True)
 
-# 2. Total Cost per kg Fabric (Stående staplar)
 fig_cost = go.Figure(go.Bar(
-    x=['Traditional Padder', 'Imogo Dye-max'],
+    x=[t('trad_padder')[2:], t('imogo_dyemax')[2:]],
     y=[p_cost_per_kg, i_cost_per_kg],
     marker_color=['#ff5252', '#00c896']
 ))
 fig_cost.update_layout(
-    title=f"Total Cost per kg Fabric ({curr})",
-    yaxis_title=f"{curr} / kg",
+    title=f"{t('total_cost_kg')} ({curr})",
+    yaxis_title=f"{curr} {t('per_kg')}",
     height=400
 )
 st.plotly_chart(fig_cost, use_container_width=True)
+
 # ====================== RAPPORTGENERERING ======================
 def generate_html_report():
     html_content = f"""
     <html>
     <head>
-        <title>Imogo Dye-max ROI Report</title>
+        <title>{t('report_title')}</title>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 40px; color: #333; }}
             h1, h2, h3 {{ color: #1e3a8a; }}
@@ -472,60 +482,60 @@ def generate_html_report():
         </style>
     </head>
     <body>
-        <div style="text-align: right; color: #666;">Date: {datetime.now().strftime("%Y-%m-%d")}</div>
-        <h1>Imogo Dye-max ROI Analysis</h1>
-        <h3>Customer: {customer_name if customer_name else "Not specified"}</h3>
+        <div style="text-align: right; color: #666;">{t('date')} {datetime.now().strftime("%Y-%m-%d")}</div>
+        <h1>{t('report_title')}</h1>
+        <h3>{t('customer')} {customer_name if customer_name else t('not_specified')}</h3>
         
         <div class="summary-box">
-            <h2>Financial Summary</h2>
-            <p><strong>Total Annual Savings:</strong> <span class="highlight">{format_num(annual_savings)} {curr}</span></p>
-            <p><strong>Estimated Payback Time:</strong> <span class="highlight">{payback_months:.1f} months</span></p>
-            <p><strong>Cost per kg (Padder):</strong> {curr} {p_cost_per_kg:.3f} / kg</p>
-            <p><strong>Cost per kg (Imogo):</strong> {curr} {i_cost_per_kg:.3f} / kg</p>
+            <h2>{t('financial_summary')}</h2>
+            <p><strong>{t('total_annual_savings')}</strong> <span class="highlight">{format_num(annual_savings)} {curr}</span></p>
+            <p><strong>{t('est_payback')}</strong> <span class="highlight">{payback_months:.1f} {t('months')}</span></p>
+            <p><strong>{t('cost_kg_padder')}</strong> {curr} {p_cost_per_kg:.3f} {t('per_kg')}</p>
+            <p><strong>{t('cost_kg_imogo')}</strong> {curr} {i_cost_per_kg:.3f} {t('per_kg')}</p>
         </div>
 
-        <h2>Production Volume summary</h2>
-        <p><strong>Daily Volume:</strong> {format_num(p_daily_m)} m/day ({format_num(p_daily_kg)} kg/day)</p>
-        <p><strong>Total Base Annual Volume:</strong> {format_num(base_annual_kg)} kg/year</p>
-        <p><strong>Extra Annual Capacity (Imogo):</strong> <span class="highlight">+{format_num(extra_annual_kg)} kg/year</span></p>
+        <h2>{t('prod_volume_summary')}</h2>
+        <p><strong>{t('daily_volume')}</strong> {format_num(p_daily_m)} {t('m_day')} ({format_num(p_daily_kg)} {t('kg_day')})</p>
+        <p><strong>{t('total_base_volume')}</strong> {format_num(base_annual_kg)} {t('kg_year')}</p>
+        <p><strong>{t('extra_annual_capacity')}</strong> <span class="highlight">+{format_num(extra_annual_kg)} {t('kg_year')}</span></p>
 
-        <h2>Annual Environmental & Resource Savings</h2>
+        <h2>{t('annual_env_savings')}</h2>
         <table>
-            <tr><th>Resource</th><th>Savings</th></tr>
-            <tr><td>Water</td><td>{format_num(water_savings_m3)} m³</td></tr>
-            <tr><td>Energy</td><td>{format_num(energy_savings_kwh)} kWh</td></tr>
+            <tr><th>{t('resource')}</th><th>{t('savings')}</th></tr>
+            <tr><td>{t('water').split(' ')[0]}</td><td>{format_num(water_savings_m3)} m³</td></tr>
+            <tr><td>{t('energy').split(' ')[0]}</td><td>{format_num(energy_savings_kwh)} kWh</td></tr>
             <tr><td>CO2</td><td>{co2_savings_tonnes:.1f} tonnes</td></tr>
-            <tr><td>Dye Stuff</td><td>{format_num(total_dye_savings_kg)} kg</td></tr>
-            <tr><td>Chemistry</td><td>{format_num(total_chem_savings_kg)} kg</td></tr>
+            <tr><td>{t('dye_stuff')}</td><td>{format_num(total_dye_savings_kg)} kg</td></tr>
+            <tr><td>{t('chem_savings').replace(' Savings', '')}</td><td>{format_num(total_chem_savings_kg)} kg</td></tr>
         </table>
 
-        <h2>Detailed Savings Breakdown</h2>
+        <h2>{t('detailed_breakdown')}</h2>
         <table>
-            <tr><th>Category</th><th>Savings ({curr})</th></tr>
-            <tr><td>Dye Stuff</td><td>{format_num(total_dye_savings)}</td></tr>
-            <tr><td>Chemistry</td><td>{format_num(total_chem_savings)}</td></tr>
-            <tr><td>Water</td><td>{format_num(water_savings)}</td></tr>
-            <tr><td>Energy</td><td>{format_num(energy_savings)}</td></tr>
-            <tr><td>Waste Handling</td><td>{format_num(waste_savings)}</td></tr>
-            <tr><td>Labor</td><td>{format_num(labor_savings)}</td></tr>
+            <tr><th>{t('category')}</th><th>{t('savings')} ({curr})</th></tr>
+            <tr><td>{t('dye_stuff')}</td><td>{format_num(total_dye_savings)}</td></tr>
+            <tr><td>{t('chem_savings').replace(' Savings', '')}</td><td>{format_num(total_chem_savings)}</td></tr>
+            <tr><td>{t('water').split(' ')[0]}</td><td>{format_num(water_savings)}</td></tr>
+            <tr><td>{t('energy').split(' ')[0]}</td><td>{format_num(energy_savings)}</td></tr>
+            <tr><td>{t('waste_handling')}</td><td>{format_num(waste_savings)}</td></tr>
+            <tr><td>{t('labor')}</td><td>{format_num(labor_savings)}</td></tr>
             <tr><td>B-Quality Fabric</td><td>{format_num(b_quality_savings)}</td></tr>
             <tr><td>Waste Fabric</td><td>{format_num(waste_fabric_savings)}</td></tr>
         </table>
 
-        <h2>Machine Parameters</h2>
+        <h2>{t('machine_parameters')}</h2>
         <table>
-            <tr><th>Parameter</th><th>Traditional Padder</th><th>Imogo Dye-max</th></tr>
-            <tr><td>Changeover Time (min)</td><td>{p_ch}</td><td>{i_ch}</td></tr>
-            <tr><td>Dye Dispersion (L/kg)</td><td>{p_disp}</td><td>{i_disp}</td></tr>
-            <tr><td>Waste Water/Changeover (L)</td><td>{p_w}</td><td>{i_w}</td></tr>
-            <tr><td>Startup Waste (m)</td><td>{p_startup}</td><td>{i_startup}</td></tr>
-            <tr><td>Energy (kWh/kg)</td><td>{p_en}</td><td>{i_en}</td></tr>
-            <tr><td>B-Quality Fabric (%)</td><td>{p_bq}%</td><td>{i_bq}%</td></tr>
-            <tr><td>Waste Fabric (%)</td><td>{p_wf}%</td><td>{i_wf}%</td></tr>
+            <tr><th>{t('parameter')}</th><th>{t('trad_padder')[2:]}</th><th>{t('imogo_dyemax')[2:]}</th></tr>
+            <tr><td>{t('changeover_time')}</td><td>{p_ch}</td><td>{i_ch}</td></tr>
+            <tr><td>{t('dye_dispersion')}</td><td>{p_disp}</td><td>{i_disp}</td></tr>
+            <tr><td>{t('waste_water_ch')}</td><td>{p_w}</td><td>{i_w}</td></tr>
+            <tr><td>{t('startup_waste')}</td><td>{p_startup}</td><td>{i_startup}</td></tr>
+            <tr><td>{t('energy')}</td><td>{p_en}</td><td>{i_en}</td></tr>
+            <tr><td>{t('b_quality_pct')}</td><td>{p_bq}%</td><td>{i_bq}%</td></tr>
+            <tr><td>{t('waste_fabric_pct')}</td><td>{p_wf}%</td><td>{i_wf}%</td></tr>
         </table>
 
         <div class="footer">
-            Generated by Imogo Dye-max ROI Calculator
+            {t('generated_by')}
         </div>
     </body>
     </html>
@@ -534,7 +544,7 @@ def generate_html_report():
 
 st.markdown("---")
 st.download_button(
-    label="📄 Download Full Report (HTML)",
+    label=t("download_report"),
     data=generate_html_report(),
     file_name=f"imogo_roi_report_{customer_name.replace(' ', '_') if customer_name else 'customer'}.html",
     mime="text/html"
