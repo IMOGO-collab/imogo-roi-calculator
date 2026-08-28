@@ -38,9 +38,8 @@ if not check_password():
 
 
 # ====================== SPRÅKVAL & INITIALISERA ======================
-lang = st.sidebar.selectbox("Language", list(LANGUAGES.keys()))
+lang = st.sidebar.selectbox("🌐 Language", list(LANGUAGES.keys()))
 t = LANGUAGES[lang]
-
 st.title(t["title"])
 
 # ====================== INITIALISERA VALUTA-STATE ======================
