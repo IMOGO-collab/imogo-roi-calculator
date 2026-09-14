@@ -102,7 +102,7 @@ total_nozzles = 2 * n_nozzles_per_ramp
 
 st.sidebar.info(
     f"📦 **Totalt antal munstycken / spraykassett:** {total_nozzles} "
-    f"\n\n"
+    f"({n_nozzles_per_ramp} per ramp × 2 ramper)\n\n"
     f"Beräknat automatiskt för {fixed_fabric_width:.0f} mm banbredd "
     f"(ger ≈{recommended_width:.0f} mm garanterad täckning)."
 )
@@ -138,6 +138,12 @@ duty_split_ramps = st.sidebar.number_input(
 )
 target_addon = fabric_weight * pickup_pct / 100.0
 st.sidebar.caption(f"💡 Målpåslag: **{target_addon:.1f} g/m²** (totalvikt tyg+vätska: {fabric_weight + target_addon:.1f} g/m²)")
+
+operating_hours = st.sidebar.number_input(
+    "Drifttid per dygn [h]",
+    value=18.0, step=0.5, min_value=0.0, max_value=24.0,
+    help="Hur många timmar per dygn maskinen faktiskt kör (exklusive planerade stopp, raster etc)."
+)
 
 st.sidebar.header("Flöden per munstycke (%)")
 
@@ -380,6 +386,57 @@ st.caption(
     "🔵 Ramp 1  🟠 Ramp 2  ⚪ Avstängt munstycke (0% profil)  🔴 Mättat (kräver >90% duty cycle). "
     "Beräkningen antar munstyckesflödet är angivet i ml/min (≈ g/min för vattenbaserad vätska), och "
     "att målpåslaget delas mellan de **verkliga** ramperna (angivet i sidopanelen)."
+)
+
+# --- DAGLIG PRODUKTIONSKAPACITET ---
+# kg tyg per meter (torrvikt, oberoende av pickup)
+kg_per_m = (fabric_weight / 1000.0) * (fixed_fabric_width / 1000.0)  # [kg/m]
+
+raw_length_per_day = line_speed * 60.0 * operating_hours  # [m], utan hänsyn till rullbyten
+
+# Varje 500 kg tyg kräver +20 m (motsvarande produktionstid) för rullbyte.
+# Nettolängden L_net löses ur: L_net + 20*(L_net*kg_per_m/500) = raw_length_per_day
+roll_overhead_ratio = kg_per_m * (20.0 / 500.0)  # dimensionslös andel "förlorad" längd per producerad meter
+if (1.0 + roll_overhead_ratio) > 0:
+    net_length_per_day = raw_length_per_day / (1.0 + roll_overhead_ratio)
+else:
+    net_length_per_day = 0.0
+
+kg_per_day = net_length_per_day * kg_per_m
+theoretical_kg_per_day = raw_length_per_day * kg_per_m  # utan rullbytesöverhead, för jämförelse
+lost_length_per_day = raw_length_per_day - net_length_per_day
+lost_time_per_day = (lost_length_per_day / line_speed) if line_speed > 0 else 0.0  # [min]
+roll_changes_per_day = (kg_per_day / 500.0) if kg_per_day > 0 else 0.0
+
+st.subheader("🏭 Daglig produktionskapacitet")
+st.write(
+    "Beräknat från tygvikt, banhastighet och drifttid per dygn (sidopanelen), med avdrag för "
+    "rullbyten — varje påbörjat 500 kg tyg kräver **+20 m** extra produktionstid för att byta rulle."
+)
+
+pc1, pc2, pc3, pc4 = st.columns(4)
+pc1.metric(
+    "Nettoproduktion",
+    f"{kg_per_day:,.0f} kg/dygn".replace(",", " "),
+    help=f"Vid {operating_hours:.1f} h drift/dygn, {line_speed:.0f} m/min och {fabric_weight:.0f} g/m² tygvikt, "
+         f"efter avdrag för rullbytestid."
+)
+pc2.metric(
+    "Rullbyten / dygn",
+    f"≈{roll_changes_per_day:.1f} st",
+    help="Ett rullbyte var 500:e kg producerat tyg."
+)
+pc3.metric(
+    "Tid till rullbyten",
+    f"{lost_time_per_day:.0f} min/dygn",
+    delta=f"−{theoretical_kg_per_day - kg_per_day:,.0f} kg mot teoretiskt max".replace(",", " "),
+    delta_color="off",
+    help=f"Teoretisk maxkapacitet utan rullbyten: {theoretical_kg_per_day:,.0f} kg/dygn.".replace(",", " ")
+)
+pc4.metric(
+    "Producerad längd",
+    f"{net_length_per_day:,.0f} m/dygn".replace(",", " "),
+    help=f"Rå banlängd (utan rullbytesavdrag): {raw_length_per_day:,.0f} m/dygn.".replace(",", " ")
 )
 
 # Mätpunkter för mjuk graf
