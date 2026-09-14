@@ -90,6 +90,19 @@ oscillation_margin = st.sidebar.number_input(
     value=35.0, step=5.0
 )
 
+shutter_margin = st.sidebar.number_input(
+    "Shutterplåt, marginal utanför tygkant [mm]",
+    value=30.0, step=5.0, min_value=0.0,
+    help="Shutterplåtarna monteras detta avstånd utanför respektive tygkant och blockerar "
+         "den del av de yttersta munstyckenas spray som annars skulle hamna utanför tyget."
+)
+shutter_width = st.sidebar.number_input(
+    "Shutterplåt, bredd [mm]",
+    value=250.0, step=10.0, min_value=0.0,
+    help="Plåtens egen bredd, mätt utåt från monteringslinjen. Styr hur brett det skuggade "
+         "\"blockerat\"-området ritas i diagrammet."
+)
+
 offset = cc_distance / 2.0
 
 # --- AUTOMATISK BERÄKNING AV ANTAL MUNSTYCKEN ---
@@ -151,6 +164,10 @@ ramp2_ids = list(range(2, 2 * n_nozzles_per_ramp + 1, 2))
 fixed_start = 0.0
 fixed_end = fixed_fabric_width
 fabric_center = fixed_fabric_width / 2.0
+
+# Shutterplåtarnas position: shutter_margin mm utanför respektive tygkant.
+shutter_left = fixed_start - shutter_margin
+shutter_right = fixed_end + shutter_margin
 
 ramp1_center = fabric_center - (cc_distance / 4.0)
 ramp2_center = fabric_center + (cc_distance / 4.0)
@@ -738,6 +755,32 @@ offset_text = cc_distance / 4.0
 ax.scatter(pos_ramp1, [y_max * 0.95] * n_nozzles_per_ramp, color='tab:blue', marker='v', s=80, zorder=5, label=f'Munstycken Ramp 1 (-{offset_text:.0f} mm från centrum)')
 ax.scatter(pos_ramp2, [y_max * 0.95] * n_nozzles_per_ramp, color='tab:orange', marker='v', s=80, zorder=5, label=f'Munstycken Ramp 2 (+{offset_text:.0f} mm från centrum)')
 
+# --- SHUTTERPLÅTAR (blockerar den del av spridningen som hamnar utanför tyget) ---
+# Placeras shutter_margin mm utanför respektive tygkant, och har en fysisk bredd (shutter_width)
+# utåt från monteringslinjen. Ytan mellan tygkanten och plåten är den overspray som fortfarande
+# passerar innan den fångas upp.
+shutter_left_outer = shutter_left - shutter_width
+shutter_right_outer = shutter_right + shutter_width
+
+ax.axvspan(
+    shutter_left_outer, shutter_left, color='black', alpha=0.22, hatch='///', zorder=1,
+    label=f'Blockerat av shutterplåt ({shutter_width:.0f} mm bred)'
+)
+ax.axvspan(shutter_right, shutter_right_outer, color='black', alpha=0.22, hatch='///', zorder=1)
+
+ax.axvline(shutter_left, color='black', linestyle='-', linewidth=3.5, zorder=7,
+           label=f'Shutterplåt vänster (-{shutter_margin:.0f} mm)')
+ax.axvline(shutter_right, color='black', linestyle='-', linewidth=3.5, zorder=7,
+           label=f'Shutterplåt höger (+{shutter_margin:.0f} mm)')
+
+for shutter_x, shutter_label in ((shutter_left, f'-{shutter_margin:.0f} mm'), (shutter_right, f'+{shutter_margin:.0f} mm')):
+    ax.annotate(
+        f'Shutterplåt\n{shutter_label}',
+        xy=(shutter_x, y_max * 0.55), ha='center', va='center', fontsize=7.5, color='white',
+        bbox=dict(boxstyle='round,pad=0.25', facecolor='black', alpha=0.85, edgecolor='none'),
+        zorder=8
+    )
+
 ax.set_title(f'Flödesprofil över tygbredd ({fixed_fabric_width:.0f} mm) | C-C = {cc_distance:.0f} mm', fontsize=11)
 ax.set_xlabel('Position över tyget [mm]', fontsize=10)
 ax.set_ylabel('Relativt flöde', fontsize=10)
@@ -763,6 +806,25 @@ ax.legend(loc='upper right', bbox_to_anchor=(1.25, 1), fontsize=8)
 plt.tight_layout()
 
 st.pyplot(fig)
+
+# --- INFO: SHUTTERPLÅTARNAS POSITION & HUR MYCKET SPRAY DE FÅNGAR UPP ---
+overspray_left_mask = x_smooth < fixed_start
+overspray_right_mask = x_smooth > fixed_end
+dx_smooth = x_smooth[1] - x_smooth[0] if len(x_smooth) > 1 else 0.0
+total_flow_area = float(np.sum(y_combined) * dx_smooth)
+overspray_left_area = float(np.sum(y_combined[overspray_left_mask]) * dx_smooth)
+overspray_right_area = float(np.sum(y_combined[overspray_right_mask]) * dx_smooth)
+overspray_left_pct = (overspray_left_area / total_flow_area * 100.0) if total_flow_area > 0 else 0.0
+overspray_right_pct = (overspray_right_area / total_flow_area * 100.0) if total_flow_area > 0 else 0.0
+
+st.info(
+    f"🛠️ **Shutterplåtar — placering:**  \n"
+    f"Vänster: **-{shutter_margin:.0f} mm** utanför tygkant (dvs vid {shutter_left:.0f} mm, tygkant vid {fixed_start:.0f} mm)  \n"
+    f"Höger: **+{shutter_margin:.0f} mm** utanför tygkant (dvs vid {shutter_right:.0f} mm, tygkant vid {fixed_end:.0f} mm)  \n\n"
+    f"Med aktuell inställning hamnar ca **{overspray_left_pct:.1f}%** av totalflödet till vänster om tyget och "
+    f"**{overspray_right_pct:.1f}%** till höger (den skuggade zonen i diagrammet ovan) — det är denna volym "
+    f"plåtarna behöver fånga upp."
+)
 
 st.caption(
     f"💡 Den lila zonen (**{worst_width:.0f} mm**) visar täckningen som är garanterad oavsett "
