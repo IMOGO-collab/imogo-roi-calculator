@@ -392,26 +392,29 @@ st.caption(
 # kg tyg per meter (torrvikt, oberoende av pickup)
 kg_per_m = (fabric_weight / 1000.0) * (fixed_fabric_width / 1000.0)  # [kg/m]
 
-raw_length_per_day = line_speed * 60.0 * operating_hours  # [m], utan hänsyn till rullbyten
+operating_minutes_per_day = operating_hours * 60.0  # [min], hela drifttiden
+raw_length_per_day = line_speed * operating_minutes_per_day  # [m], utan hänsyn till rullbyten (rent teoretiskt)
 
-# Varje 500 kg tyg kräver +20 m (motsvarande produktionstid) för rullbyte.
-# Nettolängden L_net löses ur: L_net + 20*(L_net*kg_per_m/500) = raw_length_per_day
-roll_overhead_ratio = kg_per_m * (20.0 / 500.0)  # dimensionslös andel "förlorad" längd per producerad meter
+# Varje påbörjat 500 kg tyg kräver 20 MINUTER stillestånd för rullbyte (oberoende av banhastighet).
+# Nättoproduktionstiden t_net (i minuter) löses ur:
+#   t_net + 20 * (t_net * line_speed * kg_per_m / 500) = operating_minutes_per_day
+# där antalet rullbyten = producerad_längd * kg_per_m / 500 = t_net * line_speed * kg_per_m / 500
+roll_overhead_ratio = 20.0 * line_speed * kg_per_m / 500.0  # dimensionslös andel "förlorad" drifttid per producerad minut
 if (1.0 + roll_overhead_ratio) > 0:
-    net_length_per_day = raw_length_per_day / (1.0 + roll_overhead_ratio)
+    net_time_per_day = operating_minutes_per_day / (1.0 + roll_overhead_ratio)  # [min]
 else:
-    net_length_per_day = 0.0
+    net_time_per_day = 0.0
 
+net_length_per_day = net_time_per_day * line_speed  # [m]
 kg_per_day = net_length_per_day * kg_per_m
 theoretical_kg_per_day = raw_length_per_day * kg_per_m  # utan rullbytesöverhead, för jämförelse
-lost_length_per_day = raw_length_per_day - net_length_per_day
-lost_time_per_day = (lost_length_per_day / line_speed) if line_speed > 0 else 0.0  # [min]
+lost_time_per_day = operating_minutes_per_day - net_time_per_day  # [min] — exakt 20 min × antal rullbyten
 roll_changes_per_day = (kg_per_day / 500.0) if kg_per_day > 0 else 0.0
 
 st.subheader("🏭 Daglig produktionskapacitet")
 st.write(
     "Beräknat från tygvikt, banhastighet och drifttid per dygn (sidopanelen), med avdrag för "
-    "rullbyten — varje påbörjat 500 kg tyg kräver **+20 m** extra produktionstid för att byta rulle."
+    "rullbyten — varje påbörjat 500 kg tyg kräver **20 minuter** stillestånd för att byta rulle."
 )
 
 pc1, pc2, pc3, pc4 = st.columns(4)
