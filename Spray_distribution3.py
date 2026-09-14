@@ -102,7 +102,7 @@ total_nozzles = 2 * n_nozzles_per_ramp
 
 st.sidebar.info(
     f"📦 **Totalt antal munstycken / spraykassett:** {total_nozzles} "
-    f"({n_nozzles_per_ramp} per ramp × 2 ramper)\n\n"
+    f"\n\n"
     f"Beräknat automatiskt för {fixed_fabric_width:.0f} mm banbredd "
     f"(ger ≈{recommended_width:.0f} mm garanterad täckning)."
 )
