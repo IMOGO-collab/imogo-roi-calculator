@@ -128,14 +128,11 @@ nozzle_flow_rate = st.sidebar.number_input(
     help="Flödet ut ur ett munstycke när det står helt öppet (duty cycle = 100%), kontinuerligt, "
          "angivet i ml/min."
 )
-duty_split_ramps = st.sidebar.number_input(
-    "Antal ramper i verkligheten (delar på påslaget)",
-    value=4, step=1, min_value=1,
-    help="Hur många fysiska ramper som tillsammans applicerar vätskan på samma bredd. "
-         "Modellen ovan visualiserar munstyckena som 2 sammanflätade ramper, men om ni i "
-         "verkligheten har fler ramper som delar på samma yta ska duty cycle-beräkningen "
-         "dela målpåslaget på det verkliga antalet ramper."
-)
+# Antal fysiska ramper som tillsammans applicerar vätskan (delar på målpåslaget i duty cycle-
+# beräkningen). Tidigare ett eget fält i sidopanelen ("Antal ramper i verkligheten") — nu
+# fast värde för att matcha det tidigare standardläget.
+duty_split_ramps = 4
+
 target_addon = fabric_weight * pickup_pct / 100.0
 st.sidebar.caption(f"💡 Målpåslag: **{target_addon:.1f} g/m²** (totalvikt tyg+vätska: {fabric_weight + target_addon:.1f} g/m²)")
 
@@ -283,8 +280,8 @@ nozzle_info_sorted = sorted(nozzle_info, key=lambda k: k['pos'])
 
 # --- DUTY CYCLE PER MUNSTYCKE (KOPPLAT TILL PICKUP) ---
 # Massbalans: Bas-duty = (Målpåslag × Banhastighet × C-C-avstånd) / (2 × Munstyckesflöde)
-# Divisorn styrs av "Antal ramper i verkligheten" i sidopanelen — de fysiska ramperna
-# delar tillsammans upp ansvaret för målpåslaget på den bredd (C-C) varje munstycke "äger".
+# Divisorn styrs av duty_split_ramps (fast värde ovan) — de fysiska ramperna delar
+# tillsammans upp ansvaret för målpåslaget på den bredd (C-C) varje munstycke "äger".
 cc_m = cc_distance / 1000.0
 if nozzle_flow_rate > 0:
     base_duty = (target_addon * line_speed * cc_m) / (duty_split_ramps * nozzle_flow_rate)
@@ -385,7 +382,7 @@ st.pyplot(fig_duty)
 st.caption(
     "🔵 Ramp 1  🟠 Ramp 2  ⚪ Avstängt munstycke (0% profil)  🔴 Mättat (kräver >90% duty cycle). "
     "Beräkningen antar munstyckesflödet är angivet i ml/min (≈ g/min för vattenbaserad vätska), och "
-    "att målpåslaget delas mellan de **verkliga** ramperna (angivet i sidopanelen)."
+    f"att målpåslaget delas mellan {duty_split_ramps} verkliga ramper."
 )
 
 # --- DAGLIG PRODUKTIONSKAPACITET ---
