@@ -97,30 +97,25 @@ st.sidebar.header("Antal munstycken")
 recommended_k, recommended_width = calc_required_nozzles_per_ramp(
     fixed_fabric_width, cc_distance, half_flat, half_total, oscillation_margin
 )
-st.sidebar.caption(
-    f"💡 Rekommenderat för {fixed_fabric_width:.0f} mm banbredd: **{recommended_k} munstycken per ramp** "
+n_nozzles_per_ramp = recommended_k
+total_nozzles = 2 * n_nozzles_per_ramp
+
+st.sidebar.info(
+    f"📦 **Totalt antal munstycken / spraykassett:** {total_nozzles} "
+    f"\n\n"
+    f"Beräknat automatiskt för {fixed_fabric_width:.0f} mm banbredd "
     f"(ger ≈{recommended_width:.0f} mm garanterad täckning)."
 )
-n_nozzles_per_ramp = st.sidebar.number_input(
-    "Munstycken per ramp",
-    min_value=1, max_value=60, value=recommended_k, step=1,
-    help="Totalt antal munstycken blir dubbelt så många (Ramp 1 + Ramp 2). Förvalt värde är automatiskt "
-         "beräknat för att garantera täckning av angiven banbredd, inklusive oscillationsmarginalen."
-)
-if n_nozzles_per_ramp < recommended_k:
-    st.sidebar.warning(
-        f"⚠️ Med {n_nozzles_per_ramp} munstycken per ramp räcker inte täckningen till hela "
-        f"{fixed_fabric_width:.0f} mm banbredd. Minst {recommended_k} behövs."
-    )
+
 
 st.sidebar.header("🧴 Vätskepåslag (Pickup) → Duty Cycle")
 fabric_weight = st.sidebar.number_input(
     "Tygvikt [g/m²]",
-    value=160.0, step=5.0, min_value=0.0
+    value=100.0, step=5.0, min_value=0.0
 )
 pickup_pct = st.sidebar.number_input(
     "Önskad pickup [%]",
-    value=120.0, step=5.0, min_value=0.0,
+    value=100.0, step=5.0, min_value=0.0,
     help="100% pickup = vätskepåslaget väger lika mycket som det torra tyget (t.ex. 100 gsm tyg + 100% pickup = 200 gsm totalt)."
 )
 line_speed = st.sidebar.number_input(
