@@ -111,11 +111,11 @@ st.sidebar.info(
 st.sidebar.header("🧴 Vätskepåslag (Pickup) → Duty Cycle")
 fabric_weight = st.sidebar.number_input(
     "Tygvikt [g/m²]",
-    value=100.0, step=5.0, min_value=0.0
+    value=160.0, step=5.0, min_value=0.0
 )
 pickup_pct = st.sidebar.number_input(
     "Önskad pickup [%]",
-    value=100.0, step=5.0, min_value=0.0,
+    value=120.0, step=5.0, min_value=0.0,
     help="100% pickup = vätskepåslaget väger lika mycket som det torra tyget (t.ex. 100 gsm tyg + 100% pickup = 200 gsm totalt)."
 )
 line_speed = st.sidebar.number_input(
